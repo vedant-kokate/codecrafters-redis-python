@@ -1,5 +1,6 @@
 import socket  # noqa: F401
 import threading
+global_store = {}
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
@@ -12,6 +13,18 @@ def parse_command(conn, data):
         case "ECHO":
             message = parts[4]
             conn.sendall(f"${len(message)}\r\n{message}\r\n".encode())
+        case "SET":
+            key = parts[4]
+            value = parts[6]
+            global_store[key] = value
+            conn.sendall(b"+OK\r\n")
+        case "GET":
+            key = parts[4]
+            value = global_store.get(key)
+            if value is not None:
+                conn.sendall(f"${len(value)}\r\n{value}\r\n".encode())
+            else:
+                conn.sendall(b"$-1\r\n")  # Null bulk string
         case _:
             print(f"Unknown command: {command}")
 
