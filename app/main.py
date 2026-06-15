@@ -45,7 +45,7 @@ def handle_rpush(conn, parts):
 def handle_lrange(conn, parts):
     key, left, right = parts[4], int(parts[6]), int(parts[8])
     if key not in global_store or not isinstance(global_store[key], list):
-        conn.sendall(b"$-1\r\n")
+        conn.sendall(f"*0\r\n".encode())
         return
     lst = global_store[key][left:right + 1]
     conn.sendall(f"*{len(lst)}\r\n".encode())
