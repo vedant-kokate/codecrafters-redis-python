@@ -11,12 +11,15 @@ def main():
     server_socket.accept() # wait for client
     
     conn, addr = server_socket.accept()
-    data = conn.recv(1024).decode()
-    print(f"Received data: {data}")
-    if data == b"PING\r\n":
-        conn.sendall(b"+PONG\r\n")
-    conn.close()
-    
+
+    print("Client connected")
+
+    data = conn.recv(1024)
+
+    print(f"Raw bytes: {repr(data)}")
+
+    conn.sendall(b"+PONG\r\n")
+        
 
 
 if __name__ == "__main__":
