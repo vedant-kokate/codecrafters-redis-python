@@ -1,5 +1,9 @@
 import socket  # noqa: F401
+import threading
 
+def handle(conn):
+    while data := conn.recv(1024):
+        conn.sendall(b"+PONG\r\n")
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -13,10 +17,7 @@ def main():
     
     while True:
         connection, _ = server_socket.accept() 
-        print("Client connected")
-        data = connection.recv(1024)
-        connection.sendall(b"+PONG\r\n")
-        connection.close()
+        threading.Thread(target=handle, args=(connection,)).start()
         
 
 
