@@ -16,13 +16,13 @@ def handle_get_with_expiry(conn, parts):
 def handle_set_with_expiry(conn, parts):
     key = parts[4]
     value = parts[6]
-    if len(parts) > 8 and parts[8].upper() == "PX":
+    if len(parts) >= 10 and parts[8].upper() == "PX":
         try:
             print(f"parts: {parts}")
-            expiry_time = time.time() + int(parts[9]) / 1000  # Convert milliseconds to seconds
+            expiry_time = time.time() + int(parts[10]) / 1000  # Convert milliseconds to seconds
             global_store[key] = (value, expiry_time)
         except ValueError:
-            print(f"Invalid expiry time: {parts[9]}")
+            print(f"Invalid expiry time: {parts[10]}")
     else:
         global_store[key] = (value, None)
     conn.sendall(b"+OK\r\n")
