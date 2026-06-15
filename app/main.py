@@ -5,7 +5,7 @@ global_store = {}
 def handle_get_with_expiry(conn, parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
-    if value is not None:
+    if value is None:
         conn.sendall(b"$-1\r\n")
         return
     if expiry_time is not None and time.time() > expiry_time:
