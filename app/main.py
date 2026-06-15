@@ -64,6 +64,13 @@ def handle_lpush(conn, parts):
     print(f"global_store[{key}]: {global_store[key]}")
     conn.sendall(f":{len(global_store[key])}\r\n".encode())
 
+def handle_llen(conn, parts):
+    key = parts[4]
+    if key not in global_store or not isinstance(global_store[key], list):
+        conn.sendall(f":0\r\n".encode())
+        return
+    conn.sendall(f":{len(global_store[key])}\r\n".encode())
+
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -85,6 +92,8 @@ def parse_command(conn, data):
             handle_lrange(conn, parts)
         case "LPUSH":
             handle_lpush(conn, parts)
+        case "LLEN":
+            handle_llen(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
