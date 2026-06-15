@@ -32,7 +32,7 @@ def handle_set_with_expiry(conn, parts):
 def handle_rpush(conn, parts):
     key = parts[4]
     print(f"parts: {parts}")
-    value = parts[6:len(parts) - 2:2]  # Get all values to be pushed
+    value = parts[6:len(parts):2]  # Get all values to be pushed
     print(f"value: {value}")
     if key not in global_store:
         global_store[key] = []  # Initialize as a list
