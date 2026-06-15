@@ -1,7 +1,6 @@
 import socket  # noqa: F401
 import threading
 import time
-from queue import deque
 global_store = {}
 
 def handle_get_with_expiry(conn, parts):
@@ -21,7 +20,6 @@ def handle_set_with_expiry(conn, parts):
     value = parts[6]
     if len(parts) >= 10 and parts[8].upper() == "PX":
         try:
-            print(f"parts: {parts}")
             expiry_time = time.time() + int(parts[10]) / 1000  # Convert milliseconds to seconds
             global_store[key] = (value, expiry_time)
         except ValueError:
@@ -32,12 +30,10 @@ def handle_set_with_expiry(conn, parts):
 
 def handle_rpush(conn, parts):
     key = parts[4]
-    print(f"parts: {parts}")
     value = parts[6:len(parts):2]  # Get all values to be pushed
-    print(f"value: {value}")
     if key not in global_store:
-        global_store[key] = deque()   # Initialize as a list
-    elif not isinstance(global_store[key], deque):
+        global_store[key] = []   # Initialize as a list
+    elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
     global_store[key].extend(value)
@@ -45,7 +41,7 @@ def handle_rpush(conn, parts):
 
 def handle_lrange(conn, parts):
     key, left, right = parts[4], int(parts[6]), int(parts[8])
-    if key not in global_store or not isinstance(global_store[key], deque):
+    if key not in global_store or not isinstance(global_store[key], list):
         conn.sendall(f"*0\r\n".encode())
         return
     if right == -1:
@@ -60,11 +56,11 @@ def handle_lpush(conn, parts):
     key = parts[4]
     value = parts[6:len(parts):2]  # Get all values to be pushed
     if key not in global_store:
-        global_store[key] = deque()  # Initialize as a list
-    elif not isinstance(global_store[key], deque):
+        global_store[key] = [] # Initialize as a list
+    elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
-    global_store[key].extendleft(value)  # Add to the left of the deque
+    global_store[key].extendleft(value)  # Add to the left of the list
     print(f"global_store[{key}]: {global_store[key]}")
     conn.sendall(f":{len(global_store[key])}\r\n".encode())
 
