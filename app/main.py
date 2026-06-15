@@ -1,10 +1,13 @@
 import socket  # noqa: F401
 import threading
 
+def parse_command(data):
+    parts = data.decode().split("\r\n")
+    command = parts[2].upper()
+    print(f"Parsed command: {command}")
 def handle(conn):
     while data := conn.recv(1024):
-        msg = data.decode("utf-8").strip()
-        print(f"Received: {msg}")
+        parse_command(data)
         conn.sendall(b"+PONG\r\n") 
 
 def main():
