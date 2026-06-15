@@ -8,14 +8,15 @@ def main():
     # Uncomment the code below to pass the first stage
     #
     server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-    connection, _ = server_socket.accept() 
+    
 
-    print("Client connected")
+    
     while True:
+        connection, _ = server_socket.accept() 
+        print("Client connected")
         data = connection.recv(1024)
-        if not data:
-            break
         connection.sendall(b"+PONG\r\n")
+        connection.close()
         
 
 
