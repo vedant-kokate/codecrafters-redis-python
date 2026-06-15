@@ -33,7 +33,7 @@ def handle_rpush(conn, parts):
     key = parts[4]
     value = parts[6]
     if key not in global_store:
-        global_store[key] = ([], None)  # Initialize as a list with no expiry
+        global_store[key] = []  # Initialize as a list
     elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
