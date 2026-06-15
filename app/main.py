@@ -58,6 +58,7 @@ def handle_lrange(conn, parts):
 def handle_lpush(conn, parts):
     key = parts[4]
     value = parts[6:len(parts):2]  # Get all values to be pushed
+    print(f"value: {value}")
     if key not in global_store:
         global_store[key] = deque()  # Initialize as a list
     elif not isinstance(global_store[key], deque):
