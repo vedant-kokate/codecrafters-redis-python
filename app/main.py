@@ -60,7 +60,7 @@ def handle_lpush(conn, parts):
     elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
-    global_store[key].extendleft(value)  # Add to the left of the list
+    global_store[key] = value + global_store[key]  # Prepend values
     print(f"global_store[{key}]: {global_store[key]}")
     conn.sendall(f":{len(global_store[key])}\r\n".encode())
 
