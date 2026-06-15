@@ -42,6 +42,16 @@ def handle_rpush(conn, parts):
     global_store[key].extend(value)
     conn.sendall(f":{len(global_store[key])}\r\n".encode())
 
+def handle_lrange(conn, parts):
+    key, left, right = parts[4], int(parts[6]), int(parts[8])
+    if key not in global_store or not isinstance(global_store[key], list):
+        conn.sendall(b"$-1\r\n")
+        return
+    lst = global_store[key][left:right + 1]
+    conn.sendall(f"*{len(lst)}\r\n".encode())
+    for item in lst:
+        conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -59,6 +69,8 @@ def parse_command(conn, data):
             handle_get_with_expiry(conn, parts)
         case "RPUSH":
             handle_rpush(conn, parts)
+        case "LRANGE":
+            handle_lrange(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
