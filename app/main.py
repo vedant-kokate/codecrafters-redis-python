@@ -78,6 +78,12 @@ def handle_lpop(conn, parts):
         conn.sendall(b"$-1\r\n")
         return
     popped_items = []
+
+    if count == 1:
+        item = popped_items[0]
+        conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+        return
+    
     for _ in range(min(count, len(global_store[key]))):
         popped_items.append(global_store[key].pop(0))
     print(f"Popped items from {key}: {popped_items}")
