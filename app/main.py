@@ -12,9 +12,9 @@ def main():
 
     print("Client connected")
 
-    data = connection.recv(1024)
+    data = connection.recv(1024).decode()
 
-    print(f"Raw bytes: {repr(data)}")
+    print(f"Raw bytes: {data}")
 
     connection.sendall(b"+PONG\r\n")
         
