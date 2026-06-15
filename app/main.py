@@ -12,7 +12,7 @@ def handle_get_with_expiry(conn, parts):
         del global_store[key]
         conn.sendall(b"$-1\r\n")
         return
-    conn.sendall(f"${len(value)}\r\n{value}\r\n".encode
+    conn.sendall(f"${len(value)}\r\n{value}\r\n".encode())
 def handle_set_with_expiry(conn, parts):
     key = parts[4]
     value = parts[6]
