@@ -71,6 +71,14 @@ def handle_llen(conn, parts):
         return
     conn.sendall(f":{len(global_store[key])}\r\n".encode())
 
+def handle_lpop(conn, parts):
+    key = parts[4]
+    if key not in global_store or not isinstance(global_store[key], list) or len(global_store[key]) == 0:
+        conn.sendall(b"$-1\r\n")
+        return
+    value = global_store[key].pop(0)  # Remove and return the first element
+    conn.sendall(f"${len(value)}\r\n{value}\r\n".encode())
+
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -94,6 +102,8 @@ def parse_command(conn, data):
             handle_lpush(conn, parts)
         case "LLEN":
             handle_llen(conn, parts)
+        case "LPOP":
+            handle_lpop(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
