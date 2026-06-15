@@ -8,15 +8,15 @@ def main():
     # Uncomment the code below to pass the first stage
     #
     server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-    server_socket.accept() # wait for client
+    connection, _ = server_socket.accept() 
 
     print("Client connected")
 
-    data = conn.recv(1024)
+    data = connection.recv(1024)
 
     print(f"Raw bytes: {repr(data)}")
 
-    conn.sendall(b"+PONG\r\n")
+    connection.sendall(b"+PONG\r\n")
         
 
 
