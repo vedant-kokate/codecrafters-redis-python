@@ -12,6 +12,7 @@ def main():
     
     conn, addr = server_socket.accept()
     data = conn.recv(1024) 
+    print(f"Received data: {data}")
     if data == b"PING\r\n":
         conn.sendall(b"+PONG\r\n")
     conn.close()
