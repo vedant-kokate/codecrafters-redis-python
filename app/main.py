@@ -3,6 +3,8 @@ import threading
 
 def handle(conn):
     while data := conn.recv(1024):
+        msg = data.decode("utf-8").strip()
+        print(f"Received: {msg}")
         conn.sendall(b"+PONG\r\n") 
 
 def main():
