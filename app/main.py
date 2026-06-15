@@ -18,7 +18,7 @@ def handle_set_with_expiry(conn, parts):
     value = parts[6]
     if len(parts) > 8 and parts[8].upper() == "PX":
         try:
-            print(f"parts[9]: {parts[9]}")
+            print(f"parts: {parts}")
             expiry_time = time.time() + int(parts[9]) / 1000  # Convert milliseconds to seconds
             global_store[key] = (value, expiry_time)
         except ValueError:
