@@ -77,10 +77,10 @@ def handle_lpop(conn, parts):
     if key not in global_store or not isinstance(global_store[key], list) or len(global_store[key]) == 0:
         conn.sendall(b"$-1\r\n")
         return
+    popped_items = []
     for _ in range(min(count, len(global_store[key]))):
-        value = global_store[key].pop(0)  # Remove and return the first element
-        conn.sendall(f"${len(value)}\r\n{value}\r\n".encode())
-
+        popped_items.append(global_store[key].pop(0))
+    conn.sendall(f"*{len(popped_items)}\r\n".encode())
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
