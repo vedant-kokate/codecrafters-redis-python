@@ -10,8 +10,8 @@ def parse_command(conn, data):
         case "PING":
             conn.sendall(b"+PONG\r\n") 
         case "ECHO":
-            print(f"Echoing back: {parts[4]}")
-            conn.sendall(b"+" + parts[4].encode() + b"\r\n")
+            message = parts[4]
+            conn.sendall(f"${len(message)}\r\n{message}\r\n".encode())
         case _:
             print(f"Unknown command: {command}")
 
