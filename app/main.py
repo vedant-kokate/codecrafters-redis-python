@@ -1,7 +1,30 @@
 import socket  # noqa: F401
 import threading
+import time
 global_store = {}
-
+def handle_get_with_expiry(conn, parts):
+    key = parts[4]
+    value, expiry_time = global_store.get(key, (None, None))
+    if value is not None:
+        conn.sendall(b"$-1\r\n")
+        return
+    if expiry_time is not None and time.time() > expiry_time:
+        del global_store[key]
+        conn.sendall(b"$-1\r\n")
+        return
+    conn.sendall(f"${len(value)}\r\n{value}\r\n".encode
+def handle_set_with_expiry(conn, parts):
+    key = parts[4]
+    value = parts[6]
+    if len(parts) > 8 and parts[8].upper() == "PX":
+        try:
+            expiry_time = time.time() + int(parts[9]) / 1000  # Convert milliseconds to seconds
+            global_store[key] = (value, expiry_time)
+        except ValueError:
+            print(f"Invalid expiry time: {parts[9]}")
+    else:
+        global_store[key] = (value, None)
+    conn.sendall(b"+OK\r\n")
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -14,18 +37,9 @@ def parse_command(conn, data):
             message = parts[4]
             conn.sendall(f"${len(message)}\r\n{message}\r\n".encode())
         case "SET":
-            key = parts[4]
-            value = parts[6]
-            print(f"parts length: {len(parts)}, parts: {parts}")
-            global_store[key] = value
-            conn.sendall(b"+OK\r\n")
+            handle_set_with_expiry(conn, parts)
         case "GET":
-            key = parts[4]
-            value = global_store.get(key)
-            if value is not None:
-                conn.sendall(f"${len(value)}\r\n{value}\r\n".encode())
-            else:
-                conn.sendall(b"$-1\r\n")  # Null bulk string
+            handle_get_with_expiry(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
