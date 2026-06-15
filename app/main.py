@@ -50,6 +50,7 @@ def handle_lrange(conn, parts):
         return
     if right == -1:
         right = len(global_store[key]) - 1
+    print(f"global_store[{key}]: {global_store[key]}")
     lst = global_store[key][left:right + 1]
     conn.sendall(f"*{len(lst)}\r\n".encode())
     for item in lst:
