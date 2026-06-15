@@ -1,6 +1,7 @@
 import socket  # noqa: F401
 import threading
 import time
+from queue import deque
 global_store = {}
 
 def handle_get_with_expiry(conn, parts):
@@ -35,8 +36,8 @@ def handle_rpush(conn, parts):
     value = parts[6:len(parts):2]  # Get all values to be pushed
     print(f"value: {value}")
     if key not in global_store:
-        global_store[key] = []  # Initialize as a list
-    elif not isinstance(global_store[key], list):
+        global_store[key] = deque()   # Initialize as a list
+    elif not isinstance(global_store[key], deque):
         conn.sendall(b"-ERR wrong type\r\n")
         return
     global_store[key].extend(value)
@@ -53,6 +54,17 @@ def handle_lrange(conn, parts):
     conn.sendall(f"*{len(lst)}\r\n".encode())
     for item in lst:
         conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+
+def handle_lpush(conn, parts):
+    key = parts[4]
+    value = parts[6:len(parts):2]  # Get all values to be pushed
+    if key not in global_store:
+        global_store[key] = deque()  # Initialize as a list
+    elif not isinstance(global_store[key], deque):
+        conn.sendall(b"-ERR wrong type\r\n")
+        return
+    global_store[key].extendleft(value)  # Add to the left of the deque
+    conn.sendall(f":{len(global_store[key])}\r\n".encode())
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
@@ -73,6 +85,8 @@ def parse_command(conn, data):
             handle_rpush(conn, parts)
         case "LRANGE":
             handle_lrange(conn, parts)
+        case "LPUSH":
+            handle_lpush(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
