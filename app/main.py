@@ -81,7 +81,12 @@ def handle_lpop(conn, parts):
     for _ in range(min(count, len(global_store[key]))):
         popped_items.append(global_store[key].pop(0))
     print(f"Popped items from {key}: {popped_items}")
-    conn.sendall(f"*{len(popped_items)}\r\n".encode())
+    response = [f"*{len(popped_items)}\r\n"]
+
+    for item in popped_items:
+        response.append(f"${len(item)}\r\n{item}\r\n")
+    conn.sendall("".join(response).encode())
+
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
