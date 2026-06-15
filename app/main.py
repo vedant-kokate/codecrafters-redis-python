@@ -47,6 +47,8 @@ def handle_lrange(conn, parts):
     if key not in global_store or not isinstance(global_store[key], list):
         conn.sendall(f"*0\r\n".encode())
         return
+    if right == -1:
+        right = len(global_store[key]) - 1
     lst = global_store[key][left:right + 1]
     conn.sendall(f"*{len(lst)}\r\n".encode())
     for item in lst:
