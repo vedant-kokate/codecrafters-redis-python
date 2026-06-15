@@ -16,6 +16,7 @@ def parse_command(conn, data):
         case "SET":
             key = parts[4]
             value = parts[6]
+            print(f"parts length: {len(parts)}, parts: {parts}")
             global_store[key] = value
             conn.sendall(b"+OK\r\n")
         case "GET":
