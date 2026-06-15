@@ -11,7 +11,7 @@ def parse_command(conn, data):
             conn.sendall(b"+PONG\r\n") 
         case "ECHO":
             print(f"Echoing back: {parts[4]}")
-            conn.sendall(b"+ECHO\r\n") 
+            conn.sendall(b"+" + parts[4].encode() + b"\r\n")
         case _:
             print(f"Unknown command: {command}")
 
