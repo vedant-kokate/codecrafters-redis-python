@@ -164,7 +164,7 @@ def parse_command(conn, data):
             handle_lpop(conn, parts)
         case "BLPOP":
             handle_blpop(conn, parts)  
-        case: "TYPE":
+        case "TYPE":
             handle_type(conn, parts)
         case _:
             print(f"Unknown command: {command}")
