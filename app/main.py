@@ -136,9 +136,32 @@ def handle_type(conn, parts):
     value = global_store[key]
 
     if isinstance(value, list):
-        conn.sendall(b"+list\r\n")
+        if all(isinstance(item, dict) and "id" in item for item in value):
+            conn.sendall(b"+stream\r\n")
+        else:
+            conn.sendall(b"+list\r\n")
     else:
         conn.sendall(b"+string\r\n") 
+
+def handle_xadd(conn, parts):
+    key = parts[4]
+    id = parts[6]
+    field_value_pairs = parts[8:len(parts):2]  # Get all field-value pairs
+
+    if key not in global_store:
+        global_store[key] = []  # Initialize as a list for stream entries
+    elif not isinstance(global_store[key], list):
+        conn.sendall(b"-ERR wrong type\r\n")
+        return
+
+    entry = {"id": id}
+    for i in range(0, len(field_value_pairs), 2):
+        field = field_value_pairs[i]
+        value = field_value_pairs[i + 1]
+        entry[field] = value
+
+    global_store[key].append(entry)
+    conn.sendall(f"+{id}\r\n".encode())
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
@@ -169,6 +192,8 @@ def parse_command(conn, data):
             handle_blpop(conn, parts)  
         case "TYPE":
             handle_type(conn, parts)
+        case "XADD":
+            handle_xadd(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
