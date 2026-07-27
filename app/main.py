@@ -161,7 +161,7 @@ def handle_xadd(conn, parts):
         entry[field] = value
 
     global_store[key].append(entry)
-    conn.sendall(b"+" + id.encode() + b"\r\n")
+    conn.sendall(f"${len(id)}\r\n{id}\r\n".encode())
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
