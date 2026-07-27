@@ -128,14 +128,17 @@ def handle_blpop(conn, parts):
         )
 def handle_type(conn, parts):
     key = parts[4]
+
     if key not in global_store:
-        conn.sendall("")
+        conn.sendall(b"+none\r\n")
         return
+
     value = global_store[key]
+
     if isinstance(value, list):
         conn.sendall(b"+list\r\n")
     else:
-        conn.sendall(b"+string\r\n")    
+        conn.sendall(b"+string\r\n") 
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
