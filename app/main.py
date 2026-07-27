@@ -165,7 +165,7 @@ def generate_xadd_id(key, id):
             if int(pre) < last_id_time:
                 return f"{pre}-0"
             return f"{pre}-{last_id_seq + 1}"
-        return f"{pre}-0"
+        return f"{pre}-0" if pre != '0' else "0-1"
 def handle_xadd(conn, parts):
     key = parts[4]
     id = parts[6]
