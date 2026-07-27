@@ -3,6 +3,15 @@ import threading
 import time
 global_store = {}
 
+conditions = {}
+conditions_lock = threading.Lock()
+
+def get_condition(key):
+    with conditions_lock:
+        if key not in conditions:
+            conditions[key] = threading.Condition()
+        return conditions[key]
+
 def handle_get_with_expiry(conn, parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
@@ -92,6 +101,29 @@ def handle_lpop(conn, parts):
         response.append(f"${len(item)}\r\n{item}\r\n")
     conn.sendall("".join(response).encode())
 
+def handle_blpop(conn, parts):
+    key = parts[4]
+    timeout = int(parts[6])
+    cond = get_condition(key)
+
+    with cond:
+        success = cond.wait_for(
+            lambda: key in global_store and isinstance(global_store[key], list) and len(global_store[key]) > 0,
+            timeout=timeout
+        )
+
+        if not success:
+            conn.sendall(b"$-1\r\n")
+            return
+
+        item = global_store[key].pop(0)
+        conn.sendall(
+            f"*2\r\n"
+            f"${len(key)}\r\n{key}\r\n"
+            f"${len(item)}\r\n{item}\r\n".encode()
+        )
+    
+
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -117,6 +149,8 @@ def parse_command(conn, data):
             handle_llen(conn, parts)
         case "LPOP":
             handle_lpop(conn, parts)
+        case "BLPOP":
+            handle_lpop(conn, parts)  
         case _:
             print(f"Unknown command: {command}")
 
