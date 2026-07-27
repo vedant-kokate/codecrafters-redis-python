@@ -155,14 +155,16 @@ def handle_xadd(conn, parts):
     key = parts[4]
     id = parts[6]
     field_value_pairs = parts[8:len(parts):2]  # Get all field-value pairs
-
+    if id == "0-0":
+        conn.sendall(f"-ERR The ID specified in XADD must be greater than {id}\r\n".encode())
+        return
     if key not in global_store:
         global_store[key] = []  # Initialize as a list for stream entries
     elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
     if not validate_xadd_id(key, id):
-        conn.sendall(f"-ERR The ID specified in XADD must be greater than {id}\r\n".encode())
+        conn.sendall(b"-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n")
         return  
     entry = {"id": id}
     for i in range(0, len(field_value_pairs), 2):
