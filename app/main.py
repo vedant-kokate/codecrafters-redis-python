@@ -106,7 +106,7 @@ def handle_lpop(conn, parts):
 
 def handle_blpop(conn, parts):
     key = parts[4]
-    timeout =  None if int(parts[6]) == 0 else int(parts[6])
+    timeout =  None if float(parts[6]) == 0 else int(parts[6])
     cond = get_condition(key)
 
     with cond:
