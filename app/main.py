@@ -117,7 +117,7 @@ def handle_blpop(conn, parts):
         print("success =", success,"timeout =", timeout)
 
         if not success:
-            conn.sendall(b"$-1\r\n")
+            conn.sendall(b"*-1\r\n")
             return
 
         item = global_store[key].pop(0)
