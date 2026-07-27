@@ -154,12 +154,19 @@ def validate_xadd_id(key, id):
 def generate_xadd_id(key, id):
     if '*' not in id:
         return id
-    
+
+    last_id = global_store[key][-1].get("id") if global_store[key] else None
     if id == '*':
         print(f"Generating new ID for key '{key}' with '*'")
+        id = f"{int(time.time() * 1000)}-0"  # Use current time in milliseconds
+        if last_id:
+            last_id_time, last_id_seq = map(int, last_id.split("-"))
+            new_id_time, new_id_seq = map(int, id.split("-"))
+            if new_id_time == last_id_time:
+                id = f"{new_id_time}-{last_id_seq + 1}"
+        return id
     else:
         pre, seq = id.split('-') 
-        last_id = global_store[key][-1].get("id") if global_store[key] else None
         if last_id:
             last_id_time, last_id_seq = map(int, last_id.split("-"))
             if int(pre) > last_id_time:
