@@ -143,6 +143,14 @@ def handle_type(conn, parts):
     else:
         conn.sendall(b"+string\r\n") 
 
+def validate_xadd_id(key, id):
+    if len(global_store[key]) == 0:
+        return True
+    last_id = global_store[key][-1].get("id") 
+    last_id_time, last_id_seq = map(int, last_id.split("-"))
+    new_id_time, new_id_seq = map(int, id.split("-"))
+    return (new_id_time > last_id_time) or (new_id_time == last_id_time and new_id_seq > last_id_seq)
+
 def handle_xadd(conn, parts):
     key = parts[4]
     id = parts[6]
@@ -153,7 +161,9 @@ def handle_xadd(conn, parts):
     elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
-
+    if not validate_xadd_id(key, id):
+        conn.sendall(b"-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n")
+        return  
     entry = {"id": id}
     for i in range(0, len(field_value_pairs), 2):
         field = field_value_pairs[i]
