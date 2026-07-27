@@ -162,7 +162,7 @@ def handle_xadd(conn, parts):
         conn.sendall(b"-ERR wrong type\r\n")
         return
     if not validate_xadd_id(key, id):
-        conn.sendall(b"-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n")
+        conn.sendall(f"ERR The ID specified in XADD must be greater than {id}".encode())
         return  
     entry = {"id": id}
     for i in range(0, len(field_value_pairs), 2):
