@@ -46,7 +46,7 @@ def handle_rpush(conn, parts):
             global_store[key] = []   # Initialize as a list
         elif not isinstance(global_store[key], list):
             conn.sendall(b"-ERR wrong type\r\n")
-        return
+            return
         global_store[key].extend(value)
         cond.notify()
     conn.sendall(f":{len(global_store[key])}\r\n".encode())
