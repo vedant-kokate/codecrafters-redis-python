@@ -162,7 +162,7 @@ def generate_xadd_id(key, id):
         last_id = global_store[key][-1].get("id") if global_store[key] else None
         if last_id:
             last_id_time, last_id_seq = map(int, last_id.split("-"))
-            if int(pre) < last_id_time:
+            if int(pre) > last_id_time:
                 return f"{pre}-0"
             return f"{pre}-{last_id_seq + 1}"
         return f"{pre}-0" if pre != '0' else "0-1"
