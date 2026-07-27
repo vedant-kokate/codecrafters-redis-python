@@ -114,6 +114,7 @@ def handle_blpop(conn, parts):
             lambda: key in global_store and isinstance(global_store[key], list) and len(global_store[key]) > 0,
             timeout=timeout
         )
+        print("success =", success,"timeout =", timeout)
 
         if not success:
             conn.sendall(b"$-1\r\n")
