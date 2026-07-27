@@ -129,7 +129,7 @@ def handle_blpop(conn, parts):
 def handle_type(conn, parts):
     key = parts[4]
     if key not in global_store:
-        conn.sendall(b"$-1\r\n")
+        conn.sendall("")
         return
     value = global_store[key]
     if isinstance(value, list):
