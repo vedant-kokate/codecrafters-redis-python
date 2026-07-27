@@ -126,7 +126,16 @@ def handle_blpop(conn, parts):
             f"${len(key)}\r\n{key}\r\n"
             f"${len(item)}\r\n{item}\r\n".encode()
         )
-    
+    def handle_type(conn, parts):
+        key = parts[4]
+        if key not in global_store:
+            conn.sendall(b"$-1\r\n")
+            return
+        value = global_store[key]
+        if isinstance(value, list):
+            conn.sendall(b"+list\r\n")
+        else:
+            conn.sendall(b"+string\r\n")    
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
@@ -155,6 +164,8 @@ def parse_command(conn, data):
             handle_lpop(conn, parts)
         case "BLPOP":
             handle_blpop(conn, parts)  
+        case: "TYPE":
+            handle_type(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
