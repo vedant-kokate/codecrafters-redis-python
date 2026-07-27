@@ -151,6 +151,20 @@ def validate_xadd_id(key, id):
     new_id_time, new_id_seq = map(int, id.split("-"))
     return (new_id_time > last_id_time) or (new_id_time == last_id_time and new_id_seq > last_id_seq)
 
+def generate_xadd_id(key, id):
+    if '*' not in id:
+        return id
+    
+    if id == '*':
+        print(f"Generating new ID for key '{key}' with '*'")
+    else:
+        pre, seq = id.split('-') 
+        last_id = global_store[key][-1].get("id") if global_store[key] else None
+        if last_id:
+            last_id_time, last_id_seq = map(int, last_id.split("-"))
+            if int(pre) < last_id_time:
+                return f"{pre}-0"
+            return f"{pre}-{last_id_seq + 1}"
 def handle_xadd(conn, parts):
     key = parts[4]
     id = parts[6]
@@ -163,6 +177,7 @@ def handle_xadd(conn, parts):
     elif not isinstance(global_store[key], list):
         conn.sendall(b"-ERR wrong type\r\n")
         return
+    id = generate_xadd_id(key, id)
     if not validate_xadd_id(key, id):
         conn.sendall(b"-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n")
         return  
