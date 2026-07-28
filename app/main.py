@@ -219,7 +219,7 @@ def handle_xrange(conn, parts):
         for item in flat:
             response.append(bulk(item))
 
-    return "\r\n".join(response).encode()
+    return b"".join(response)
 def handle_xread(conn, parts):
     streams_index = parts.index("streams")
     args = parts[streams_index + 2::2]  # Skip "$len" elements
