@@ -232,9 +232,9 @@ def handle_xread(conn, parts):
     keys_and_ids = parts[6:len(parts):2]
     keys =[]
     ids =[] # Get all keys and their corresponding last IDs
-    for i in range(0, len(keys_and_ids), 2):
+    for i in range(0, len(keys_and_ids)//2):
         keys.append(keys_and_ids[i])
-        ids.append(keys_and_ids[i + 1])
+        ids.append(keys_and_ids[-i-1])
     print(f"Keys: {keys}, IDs: {ids}")
     for key, last_id in zip(keys, ids):
         print(f"Reading from stream '{key}' starting from ID '{last_id}'")
