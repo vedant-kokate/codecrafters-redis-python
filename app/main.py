@@ -231,11 +231,14 @@ def handle_xrange(conn, parts):
 def handle_xread(conn, parts):
     streams_index = parts.index("streams")
     args = parts[streams_index + 2::2]  # Skip "$len" elements
+    n = len(args) // 2
+    keys = args[:n]
+    ids = args[n:]
     if parts[4] == "BLOCK":
         block_time = int(parts[6])
         timeout = block_time / 1000.0
-        key = args[4]  # Assuming only one key for simplicity
-        id = args[5]  # Corresponding ID for the key
+        key = keys[0]  # Assuming only one key for simplicity
+        id = ids[0]  # Corresponding ID for the key
         cond = get_condition(key+id)
         with cond:
             success = cond.wait_for(
@@ -251,9 +254,7 @@ def handle_xread(conn, parts):
                 conn.sendall(b"*-1\r\n")
                 return
             
-    n = len(args) // 2
-    keys = args[:n]
-    ids = args[n:]
+    
 
     conn.sendall(f"*{len(keys)}\r\n".encode()) 
     for key, last_id in zip(keys, ids):
