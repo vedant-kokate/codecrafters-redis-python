@@ -98,7 +98,7 @@ def handle_lpop(conn, parts):
     
     for item in popped_items:
         response.append(bulk(item))
-    return "".join(response).encode()
+    return  b"".join(response)
 
 def handle_blpop(conn, parts):
     key = parts[4]
