@@ -237,7 +237,7 @@ def handle_xread(conn, parts):
     keys = args[:n]
     ids = args[n:]
     print(f"parts: {parts}")
-    if parts[4] == "BLOCK":
+    if parts[4].upper() == "BLOCK":
         block_time = int(parts[6])
         timeout = block_time / 1000.0
         key = keys[0]  # Assuming only one key for simplicity
