@@ -57,7 +57,7 @@ def handle_rpush(conn, parts):
 def handle_lrange(conn, parts):
     key, left, right = parts[4], int(parts[6]), int(parts[8])
     if key not in global_store or not isinstance(global_store[key], list):
-        return f"*0\r\n".encode()
+        return array(0)
     if right == -1:
         right = len(global_store[key]) - 1
     print(f"global_store[{key}]: {global_store[key]}")
@@ -197,7 +197,7 @@ def handle_xrange(conn, parts):
     end_id = parts[8]
     
     if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
-        return f"*0\r\n".encode()
+        return array(0)
 
     entries = []
     for entry in global_store[key]:
@@ -258,7 +258,7 @@ def handle_xread(conn, parts):
             last_id = dollar_id
         print(f"Fetching entries from stream '{key}' after ID '{last_id}'")
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
-                return f"*0\r\n".encode()
+                return array(0)
         entries = []
         print(f"global_store[{key}]: {global_store[key]}")
         for entry in global_store[key]:
@@ -282,7 +282,7 @@ def handle_xread(conn, parts):
 
             for item in flat:
                 response.append(bulk(item))
-    return "\r\n".join(response).encode()
+    return b"".join(response)
 def handle_incr(conn, parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
