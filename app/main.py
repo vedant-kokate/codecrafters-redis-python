@@ -242,7 +242,7 @@ def handle_xread(conn, parts):
         timeout = block_time / 1000.0 if block_time > 0 else None
         key = keys[0]  # Assuming only one key for simplicity
         last_id = ids[0]  # Corresponding ID for the key
-        if id == '$':
+        if last_id == '$':
             last_id = global_store[key][-1]["id"] if key in global_store and global_store[key] else "0-0"
         cond = get_condition(key)
         print(f"Waiting for new entries in stream '{key}' after ID '{last_id}' with timeout {timeout} seconds")
