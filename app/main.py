@@ -229,10 +229,30 @@ def handle_xrange(conn, parts):
         for item in flat:
             conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 def handle_xread(conn, parts):
-    print(f"Received XREAD command with parts: {parts[6:9]}")
     key, last_id = parts[6], parts[8]
-    print(f"Handling XREAD for key: {key}, last_id: {last_id}")
-    handle_xrange(conn, ["", "", "", "", key,"", last_id, "", "+"])
+    if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
+            conn.sendall(f"*0\r\n".encode())
+            return
+    entries = []
+    for entry in global_store[key]:
+        entry_id = entry["id"]
+        if (last_id == "-" or entry_id >= last_id):
+            entries.append(entry)
+    
+    conn.sendall(f"*{len(entries)}\r\n".encode())
+    for entry in entries:
+        conn.sendall(b"*2\r\n")
+        conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
+
+
+        flat = []
+        for k, v in entry.items():
+            if k != "id":
+                flat.extend([k, v])
+
+        conn.sendall(f"*{len(flat)}\r\n".encode())
+        for item in flat:
+            conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
