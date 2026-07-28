@@ -303,16 +303,23 @@ def handle_multi(conn, transaction):
 
 def handle_exec(conn, transaction):
     if not transaction["in_multi"]:
-        conn.sendall(b"-ERR EXEC without MULTI\r\n")
-        return
+        return b"-ERR EXEC without MULTI\r\n"
+
     transaction["in_multi"] = False
+
     responses = []
+
     for parts in transaction["queue"]:
-        response = parse_command(conn, "\r\n".join(parts) + "\r\n", transaction)
+        response = parse_command(
+            conn,
+            ("\r\n".join(parts) + "\r\n").encode(),
+            transaction,
+        )
         responses.append(response)
-    if not responses:
-        return b"*0\r\n"
-    return "\r\n".join(responses).encode()
+
+    transaction["queue"].clear()
+
+    return array(len(responses)) + b"".join(responses)
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
