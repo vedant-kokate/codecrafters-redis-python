@@ -229,7 +229,7 @@ def handle_xrange(conn, parts):
         for item in flat:
             conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 def handle_xread(conn, parts):
-    keys_and_ids = parts[4:len(parts):2]
+    keys_and_ids = parts[6:len(parts):2]
     keys =[]
     ids =[] # Get all keys and their corresponding last IDs
     for i in range(0, len(keys_and_ids), 2):
