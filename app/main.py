@@ -241,6 +241,7 @@ def handle_xread(conn, parts):
                 conn.sendall(f"*0\r\n".encode())
                 return
         entries = []
+        print(f"global_store[{key}]: {global_store[key]}")
         for entry in global_store[key]:
             entry_id = entry["id"]
             if (last_id == "-" or entry_id >= last_id):
