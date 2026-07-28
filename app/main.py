@@ -242,6 +242,7 @@ def handle_xread(conn, parts):
         key = keys[0]  # Assuming only one key for simplicity
         last_id = ids[0]  # Corresponding ID for the key
         cond = get_condition(key)
+        print(f"Waiting for new entries in stream '{key}' after ID '{last_id}' with timeout {timeout} seconds")
         with cond:
             success = cond.wait_for(
                 lambda: (
