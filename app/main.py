@@ -235,6 +235,7 @@ def handle_xread(conn, parts):
     for i in range(0, len(keys_and_ids), 2):
         keys.append(keys_and_ids[i])
         ids.append(keys_and_ids[i + 1])
+    print(f"Keys: {keys}, IDs: {ids}")
     for key, last_id in zip(keys, ids):
         print(f"Reading from stream '{key}' starting from ID '{last_id}'")
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
@@ -244,7 +245,7 @@ def handle_xread(conn, parts):
         print(f"global_store[{key}]: {global_store[key]}")
         for entry in global_store[key]:
             entry_id = entry["id"]
-            if (last_id == "-" or entry_id >= last_id):
+            if (entry_id >= last_id):
                 entries.append(entry)
         
         conn.sendall(b"*1\r\n")                     # outer array
