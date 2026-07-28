@@ -310,7 +310,8 @@ def handle_exec(conn, transaction):
     for parts in transaction["queue"]:
         response = parse_command(conn, "\r\n".join(parts) + "\r\n", transaction)
         responses.append(response)
-    return "\r\n".join(responses).encode()
+    
+    return b"".join(responses)
 
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
