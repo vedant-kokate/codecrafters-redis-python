@@ -264,7 +264,7 @@ def handle_xread(conn, parts):
         print(f"global_store[{key}]: {global_store[key]}")
         for entry in global_store[key]:
             entry_id = entry["id"]
-            if (entry_id >= last_id):
+            if (entry_id > last_id):
                 entries.append(entry)
         
         conn.sendall(b"*2\r\n")                  # [stream name, entries]
