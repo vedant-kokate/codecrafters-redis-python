@@ -250,6 +250,7 @@ def handle_xread(conn, parts):
                 ),
                 timeout=timeout,
             )
+            print(global_store[key])
             print("success =", success,"timeout =", timeout)
     
             if not success:
