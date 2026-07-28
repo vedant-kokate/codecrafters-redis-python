@@ -229,6 +229,7 @@ def handle_xrange(conn, parts):
         for item in flat:
             conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 def handle_xread(conn, parts):
+    print(f"Received XREAD command with parts: {parts}")
     key = parts[4]
     last_id = parts[6]
     print(f"Handling XREAD for key: {key}, last_id: {last_id}")
