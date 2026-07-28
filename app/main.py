@@ -6,6 +6,12 @@ global_store = {}
 conditions = {}
 conditions_lock = threading.Lock()
 
+def bulk(s):
+    return f"${len(s)}\r\n{s}\r\n".encode()
+
+def array(n):
+    return f"*{n}\r\n".encode()
+
 def get_condition(key):
     with conditions_lock:
         if key not in conditions:
@@ -85,13 +91,13 @@ def handle_lpop(conn, parts):
     for _ in range(min(count, len(global_store[key]))):
         popped_items.append(global_store[key].pop(0))
     print(f"Popped items from {key}: {popped_items}")
-    response = [f"*{len(popped_items)}\r\n"]
+    response = [array(len(popped_items))]
     if count == 1:
         item = popped_items[0]
-        return f"${len(item)}\r\n{item}\r\n".encode()
+        return bulk(item)
     
     for item in popped_items:
-        response.append(f"${len(item)}\r\n{item}\r\n")
+        response.append(bulk(item))
     return "".join(response).encode()
 
 def handle_blpop(conn, parts):
@@ -111,9 +117,9 @@ def handle_blpop(conn, parts):
 
         item = global_store[key].pop(0)
         return(
-            f"*2\r\n"
-            f"${len(key)}\r\n{key}\r\n"
-            f"${len(item)}\r\n{item}\r\n".encode()
+            array(2)
+            + bulk(key)
+            + bulk(item)
         )
 def handle_type(conn, parts):
     key = parts[4]
@@ -199,19 +205,19 @@ def handle_xrange(conn, parts):
         if (start_id == "-" or entry_id >= start_id) and (end_id == "+" or entry_id <= end_id):
             entries.append(entry)
         
-    response = [f"*{len(entries)}\r\n"]
+    response = [array(len(entries))]
     for entry in entries:
-        response.append(f"*2\r\n")
-        response.append(f"${len(entry['id'])}\r\n{entry['id']}\r\n")
+        response.append(array(2))
+        response.append(bulk(entry['id']))
 
         flat = []
         for k, v in entry.items():
             if k != "id":
                 flat.extend([k, v])
 
-        response.append(f"*{len(flat)}\r\n")
+        response.append(array(len(flat)))
         for item in flat:
-            response.append(f"${len(item)}\r\n{item}\r\n")
+            response.append(bulk(item))
 
     return "\r\n".join(response).encode()
 def handle_xread(conn, parts):
@@ -226,7 +232,7 @@ def handle_xread(conn, parts):
         timeout = block_time / 1000.0 if block_time > 0 else None
         key = keys[0]  # Assuming only one key for simplicity
         last_id = ids[0]  # Corresponding ID for the key
-        if last_id == '$':
+        if  last_id == '$':
             last_id = global_store[key][-1]["id"] if key in global_store and global_store[key] else "0-0"
             dollar_id = last_id
         cond = get_condition(key)
@@ -246,7 +252,7 @@ def handle_xread(conn, parts):
                 return b"*-1\r\n"
             
 
-    response = [f"*{len(keys)}\r\n"]
+    response = [array(len(keys))]
     for key, last_id in zip(keys, ids):
         if last_id == '$' and dollar_id is not None:
             last_id = dollar_id
@@ -260,22 +266,22 @@ def handle_xread(conn, parts):
             if (entry_id > last_id):
                 entries.append(entry)
         
-        response.append(b"*2\r\n")                  # [stream name, entries]
-        response.append(f"${len(key)}\r\n{key}\r\n".encode())
-        response.append(f"*{len(entries)}\r\n".encode())
+        response.append(array(2))                  # [stream name, entries]
+        response.append(bulk(key))
+        response.append(array(len(entries)))
         for entry in entries:
-            response.append(b"*2\r\n")
-            response.append(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
+            response.append(array(2))
+            response.append(bulk(entry['id']))
 
             flat = []
             for k, v in entry.items():
                 if k != "id":
                     flat.extend([k, v])
 
-            response.append(f"*{len(flat)}\r\n".encode())
+            response.append(array(len(flat)))
 
             for item in flat:
-                response.append(f"${len(item)}\r\n{item}\r\n".encode())
+                response.append(bulk(item))
     return "\r\n".join(response).encode()
 def handle_incr(conn, parts):
     key = parts[4]
