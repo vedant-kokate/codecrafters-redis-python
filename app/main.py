@@ -229,15 +229,18 @@ def handle_xrange(conn, parts):
         for item in flat:
             conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 def handle_xread(conn, parts):
-    keys_and_ids = parts[6:len(parts):2]
-    keys =[]
-    ids =[] # Get all keys and their corresponding last IDs
-    for i in range(0, len(keys_and_ids)//2):
-        keys.append(keys_and_ids[i])
-        ids.append(keys_and_ids[-i-1])
-    print(f"Keys: {keys}, IDs: {ids}")
+    streams_index = parts.index("streams")
+    args = parts[streams_index + 2::2]  # Skip "$len" elements
+
+    n = len(args) // 2
+    keys = args[:n]
+    ids = args[n:]
+
+    conn.sendall(f"*{len(keys)}\r\n".encode()) 
     for key, last_id in zip(keys, ids):
-        print(f"Reading from stream '{key}' starting from ID '{last_id}'")
+        conn.sendall(b"*2\r\n")                  # [stream name, entries]
+        conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
+        conn.sendall(f"*{len(entries)}\r\n".encode())
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
                 conn.sendall(f"*0\r\n".encode())
                 return
