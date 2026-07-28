@@ -267,6 +267,7 @@ def handle_xread(conn, parts):
     for key, last_id in zip(keys, ids):
         if last_id == '$':
             last_id = global_store[key][-1]["id"] if key in global_store and global_store[key] else "0-0"
+        print(f"Fetching entries from stream '{key}' after ID '{last_id}'")
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
                 conn.sendall(f"*0\r\n".encode())
                 return
