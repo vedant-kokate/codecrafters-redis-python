@@ -322,6 +322,14 @@ def handle_exec(conn, transaction):
     transaction["queue"].clear()
 
     return array(len(responses)) + b"".join(responses)
+
+def handle_discard(conn, transaction):
+    if not transaction["in_multi"]:
+        return b"-ERR DISCARD without MULTI\r\n"
+
+    transaction["in_multi"] = False
+    transaction["queue"].clear()
+    return b"+OK\r\n"
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
@@ -366,6 +374,8 @@ def parse_command(conn, data, transaction):
             return handle_multi(conn, transaction)
         case "EXEC":
             return handle_exec(conn, transaction)
+        case "DISCARD":
+            return handle_discard(conn, transaction)
         case _:
             print(f"Unknown command: {command}")
 
