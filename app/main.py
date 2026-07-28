@@ -295,7 +295,19 @@ def handle_xread(conn, parts):
 
             for item in flat:
                 conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
-
+def handle_incr(conn, parts):
+    key = parts[4]
+    value, expiry_time = global_store.get(key, (None, None))
+    if value is None:
+        new_value = 1
+    else:
+        try:
+            new_value = int(value) + 1
+        except ValueError:
+            conn.sendall(b"-ERR value is not an integer or out of range\r\n")
+            return
+    global_store[key] = (str(new_value), expiry_time)
+    conn.sendall(f":{new_value}\r\n".encode())
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -331,6 +343,8 @@ def parse_command(conn, data):
             handle_xrange(conn, parts)
         case "XREAD":
             handle_xread(conn, parts)
+        case "INCR":
+            handle_incr(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
