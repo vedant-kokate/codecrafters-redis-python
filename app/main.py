@@ -231,7 +231,21 @@ def handle_xrange(conn, parts):
 def handle_xread(conn, parts):
     streams_index = parts.index("streams")
     args = parts[streams_index + 2::2]  # Skip "$len" elements
-
+    if parts[4] == "BLOCK":
+        block_time = int(parts[6])
+        timeout = block_time / 1000.0
+        cond = get_condition(key)
+        with cond:
+            success = cond.wait_for(
+                lambda: key in global_store and isinstance(global_store[key], list) and len(global_store[key]) > 0,
+                timeout=timeout
+            )
+            print("success =", success,"timeout =", timeout)
+    
+            if not success:
+                conn.sendall(b"*-1\r\n")
+                return
+            
     n = len(args) // 2
     keys = args[:n]
     ids = args[n:]
