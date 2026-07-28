@@ -360,6 +360,7 @@ def handle(conn):
     }
     while data := conn.recv(1024):
         response = parse_command(conn, data, transaction)
+        print(f"Response: {response}")
         conn.sendall(response.encode() if response else b"")
 
 
