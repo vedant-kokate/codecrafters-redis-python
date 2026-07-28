@@ -236,7 +236,7 @@ def handle_xread(conn, parts):
     n = len(args) // 2
     keys = args[:n]
     ids = args[n:]
-    print(f"parts: {parts}")
+    dollar_id = None
     if parts[4].upper() == "BLOCK":
         block_time = int(parts[6])
         timeout = block_time / 1000.0 if block_time > 0 else None
@@ -244,6 +244,7 @@ def handle_xread(conn, parts):
         last_id = ids[0]  # Corresponding ID for the key
         if last_id == '$':
             last_id = global_store[key][-1]["id"] if key in global_store and global_store[key] else "0-0"
+            dollar_id = last_id
         cond = get_condition(key)
         print(f"Waiting for new entries in stream '{key}' after ID '{last_id}' with timeout {timeout} seconds")
         with cond:
@@ -265,8 +266,8 @@ def handle_xread(conn, parts):
 
     conn.sendall(f"*{len(keys)}\r\n".encode()) 
     for key, last_id in zip(keys, ids):
-        if last_id == '$':
-            last_id = global_store[key][-1]["id"] if key in global_store and global_store[key] else "0-0"
+        if last_id == '$' and dollar_id is not None:
+            last_id = dollar_id
         print(f"Fetching entries from stream '{key}' after ID '{last_id}'")
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
                 conn.sendall(f"*0\r\n".encode())
