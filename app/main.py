@@ -239,11 +239,13 @@ def handle_xread(conn, parts):
         if (last_id == "-" or entry_id >= last_id):
             entries.append(entry)
     
-    conn.sendall(f"*{len(entries)}\r\n".encode())
+    conn.sendall(b"*1\r\n")                     # outer array
+    conn.sendall(b"*2\r\n")                     # [stream name, entries]
+    conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
+    conn.sendall(f"*{len(entries)}\r\n".encode())   # entries array
     for entry in entries:
         conn.sendall(b"*2\r\n")
         conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
-
 
         flat = []
         for k, v in entry.items():
@@ -251,6 +253,7 @@ def handle_xread(conn, parts):
                 flat.extend([k, v])
 
         conn.sendall(f"*{len(flat)}\r\n".encode())
+
         for item in flat:
             conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 
