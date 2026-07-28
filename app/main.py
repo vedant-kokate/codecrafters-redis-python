@@ -12,6 +12,9 @@ def bulk(s):
 def array(n):
     return f"*{n}\r\n".encode()
 
+def integer(n):
+    return f":{n}\r\n".encode()
+
 def get_condition(key):
     with conditions_lock:
         if key not in conditions:
@@ -26,7 +29,7 @@ def handle_get_with_expiry(conn, parts):
     if expiry_time is not None and time.time() > expiry_time:
         del global_store[key]
         return b"$-1\r\n"
-    return f"${len(value)}\r\n{value}\r\n".encode()
+    return bulk(value)
 
 def handle_set_with_expiry(conn, parts):
     key = parts[4]
@@ -52,7 +55,7 @@ def handle_rpush(conn, parts):
             return b"-ERR wrong type\r\n"
         global_store[key].extend(value)
         cond.notify()
-    return f":{len(global_store[key])}\r\n".encode()
+    return integer(len(global_store[key]))
 
 def handle_lrange(conn, parts):
     key, left, right = parts[4], int(parts[6]), int(parts[8])
@@ -62,7 +65,7 @@ def handle_lrange(conn, parts):
         right = len(global_store[key]) - 1
     print(f"global_store[{key}]: {global_store[key]}")
     lst = global_store[key][left:right + 1]
-    return f"*{len(lst)}\r\n".encode() + b"".join(f"${len(item)}\r\n{item}\r\n".encode() for item in lst)
+    return array(len(lst)) + b"".join(bulk(item) for item in lst)
 
 def handle_lpush(conn, parts):
     key = parts[4]
@@ -73,13 +76,13 @@ def handle_lpush(conn, parts):
         return b"-ERR wrong type\r\n"
     global_store[key] = value[::-1] + global_store[key]  # Prepend values
     print(f"global_store[{key}]: {global_store[key]}")
-    return f":{len(global_store[key])}\r\n".encode()
+    return integer(len(global_store[key]))
 
 def handle_llen(conn, parts):
     key = parts[4]
     if key not in global_store or not isinstance(global_store[key], list):
-        return f":0\r\n".encode()
-    return f":{len(global_store[key])}\r\n".encode()
+        return integer(0)
+    return integer(len(global_store[key]))
 
 def handle_lpop(conn, parts):
     key = parts[4]
@@ -292,14 +295,13 @@ def handle_incr(conn, parts):
         try:
             new_value = int(value) + 1
         except ValueError:
-            conn.sendall(b"-ERR value is not an integer or out of range\r\n")
-            return
+            return b"-ERR value is not an integer or out of range\r\n"
     global_store[key] = (str(new_value), expiry_time)
-    conn.sendall(f":{new_value}\r\n".encode())
+    return integer(new_value)
 def handle_multi(conn, transaction):
     transaction["in_multi"] = True
     transaction["queue"] = []
-    conn.sendall(b"+OK\r\n")
+    return b"+OK\r\n"
 
 def handle_exec(conn, transaction):
     if not transaction["in_multi"]:
@@ -326,15 +328,14 @@ def parse_command(conn, data, transaction):
     command = parts[2].upper()
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI"):
         transaction["queue"].append(parts)
-        conn.sendall(b"+QUEUED\r\n")
-        return
+        return b"+QUEUED\r\n"
     print(f"Parsed command: {command}")
     match command:
         case "PING":
             return b"+PONG\r\n"
         case "ECHO":
             message = parts[4]
-            return f"${len(message)}\r\n{message}\r\n".encode()
+            return bulk(message)
         case "SET":
             return handle_set_with_expiry(conn, parts)
         case "GET":
