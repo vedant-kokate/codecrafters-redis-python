@@ -236,6 +236,7 @@ def handle_xread(conn, parts):
         keys.append(keys_and_ids[i])
         ids.append(keys_and_ids[i + 1])
     for key, last_id in zip(keys, ids):
+        print(f"Reading from stream '{key}' starting from ID '{last_id}'")
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
                 conn.sendall(f"*0\r\n".encode())
                 return
