@@ -232,7 +232,7 @@ def handle_xread(conn, parts):
     print(f"Received XREAD command with parts: {parts[6:9]}")
     key, last_id = parts[6], parts[8]
     print(f"Handling XREAD for key: {key}, last_id: {last_id}")
-    handle_xrange(conn, ["", "", "", "", key, last_id, "+"])
+    handle_xrange(conn, ["", "", "", "", key,"", last_id, "", "+"])
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
