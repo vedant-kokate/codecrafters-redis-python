@@ -216,6 +216,7 @@ def handle_xrange(conn, parts):
 
     conn.sendall(f"*{len(entries)}\r\n".encode())
     for entry in entries:
+        print(f"Sending entry: {entry}")
         conn.sendall(f"*2\r\n${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
         field_value_pairs = [f"${len(k)}\r\n{k}\r\n${len(v)}\r\n{v}\r\n" for k, v in entry.items() if k != "id"]
         conn.sendall(f"*{len(field_value_pairs)}\r\n".encode())
