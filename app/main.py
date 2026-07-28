@@ -211,15 +211,23 @@ def handle_xrange(conn, parts):
     for entry in global_store[key]:
         entry_id = entry["id"]
         if (start_id == "-" or entry_id >= start_id) and (end_id == "+" or entry_id <= end_id):
-            for k, v in entry.items():
-                if k != "id":
-                    entries.append(k)
-                    entries.append(v)
+            entries.append(entry)
         
 
     conn.sendall(f"*{len(entries)}\r\n".encode())
     for entry in entries:
-        conn.sendall(f"${len(entry)}\r\n{entry}\r\n".encode())
+        conn.sendall(f"*2\r\n".encode())
+        conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
+
+        flat = []
+        for k, v in entry.items():
+            if k != "id":
+                flat.extend([k, v])
+
+        conn.sendall(f"*{len(flat)}\r\n".encode())
+
+        for item in flat:
+            conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
