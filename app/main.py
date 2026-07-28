@@ -238,9 +238,6 @@ def handle_xread(conn, parts):
 
     conn.sendall(f"*{len(keys)}\r\n".encode()) 
     for key, last_id in zip(keys, ids):
-        conn.sendall(b"*2\r\n")                  # [stream name, entries]
-        conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
-        conn.sendall(f"*{len(entries)}\r\n".encode())
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
                 conn.sendall(f"*0\r\n".encode())
                 return
@@ -251,10 +248,9 @@ def handle_xread(conn, parts):
             if (entry_id >= last_id):
                 entries.append(entry)
         
-        conn.sendall(b"*1\r\n")                     # outer array
-        conn.sendall(b"*2\r\n")                     # [stream name, entries]
+        conn.sendall(b"*2\r\n")                  # [stream name, entries]
         conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
-        conn.sendall(f"*{len(entries)}\r\n".encode())   # entries array
+        conn.sendall(f"*{len(entries)}\r\n".encode())
         for entry in entries:
             conn.sendall(b"*2\r\n")
             conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
