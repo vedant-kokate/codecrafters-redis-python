@@ -16,14 +16,12 @@ def handle_get_with_expiry(conn, parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
     if value is None:
-        conn.sendall(b"$-1\r\n")
-        return
+        return b"$-1\r\n"
     if expiry_time is not None and time.time() > expiry_time:
         del global_store[key]
-        conn.sendall(b"$-1\r\n")
-        return
-    conn.sendall(f"${len(value)}\r\n{value}\r\n".encode())\
-    
+        return b"$-1\r\n"
+    return f"${len(value)}\r\n{value}\r\n".encode()
+
 def handle_set_with_expiry(conn, parts):
     key = parts[4]
     value = parts[6]
@@ -35,7 +33,7 @@ def handle_set_with_expiry(conn, parts):
             print(f"Invalid expiry time: {parts[10]}")
     else:
         global_store[key] = (value, None)
-    conn.sendall(b"+OK\r\n")
+    return b"+OK\r\n"
 
 def handle_rpush(conn, parts):
     key = parts[4]
@@ -45,24 +43,20 @@ def handle_rpush(conn, parts):
         if key not in global_store:
             global_store[key] = []   # Initialize as a list
         elif not isinstance(global_store[key], list):
-            conn.sendall(b"-ERR wrong type\r\n")
-            return
+            return b"-ERR wrong type\r\n"
         global_store[key].extend(value)
         cond.notify()
-    conn.sendall(f":{len(global_store[key])}\r\n".encode())
+    return f":{len(global_store[key])}\r\n".encode()
 
 def handle_lrange(conn, parts):
     key, left, right = parts[4], int(parts[6]), int(parts[8])
     if key not in global_store or not isinstance(global_store[key], list):
-        conn.sendall(f"*0\r\n".encode())
-        return
+        return f"*0\r\n".encode()
     if right == -1:
         right = len(global_store[key]) - 1
     print(f"global_store[{key}]: {global_store[key]}")
     lst = global_store[key][left:right + 1]
-    conn.sendall(f"*{len(lst)}\r\n".encode())
-    for item in lst:
-        conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+    return f"*{len(lst)}\r\n".encode() + b"".join(f"${len(item)}\r\n{item}\r\n".encode() for item in lst)
 
 def handle_lpush(conn, parts):
     key = parts[4]
@@ -70,25 +64,22 @@ def handle_lpush(conn, parts):
     if key not in global_store:
         global_store[key] = [] # Initialize as a list
     elif not isinstance(global_store[key], list):
-        conn.sendall(b"-ERR wrong type\r\n")
-        return
+        return b"-ERR wrong type\r\n"
     global_store[key] = value[::-1] + global_store[key]  # Prepend values
     print(f"global_store[{key}]: {global_store[key]}")
-    conn.sendall(f":{len(global_store[key])}\r\n".encode())
+    return f":{len(global_store[key])}\r\n".encode()
 
 def handle_llen(conn, parts):
     key = parts[4]
     if key not in global_store or not isinstance(global_store[key], list):
-        conn.sendall(f":0\r\n".encode())
-        return
-    conn.sendall(f":{len(global_store[key])}\r\n".encode())
+        return f":0\r\n".encode()
+    return f":{len(global_store[key])}\r\n".encode()
 
 def handle_lpop(conn, parts):
     key = parts[4]
     count = int(parts[6]) if len(parts) > 6 else 1
     if key not in global_store or not isinstance(global_store[key], list) or len(global_store[key]) == 0:
-        conn.sendall(b"$-1\r\n")
-        return
+        return b"$-1\r\n"
     popped_items = []
 
     for _ in range(min(count, len(global_store[key]))):
@@ -97,12 +88,11 @@ def handle_lpop(conn, parts):
     response = [f"*{len(popped_items)}\r\n"]
     if count == 1:
         item = popped_items[0]
-        conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
-        return
+        return f"${len(item)}\r\n{item}\r\n".encode()
     
     for item in popped_items:
         response.append(f"${len(item)}\r\n{item}\r\n")
-    conn.sendall("".join(response).encode())
+    return "".join(response).encode()
 
 def handle_blpop(conn, parts):
     key = parts[4]
@@ -117,11 +107,10 @@ def handle_blpop(conn, parts):
         print("success =", success,"timeout =", timeout)
 
         if not success:
-            conn.sendall(b"*-1\r\n")
-            return
+            return b"*-1\r\n"
 
         item = global_store[key].pop(0)
-        conn.sendall(
+        return(
             f"*2\r\n"
             f"${len(key)}\r\n{key}\r\n"
             f"${len(item)}\r\n{item}\r\n".encode()
@@ -130,18 +119,17 @@ def handle_type(conn, parts):
     key = parts[4]
 
     if key not in global_store:
-        conn.sendall(b"+none\r\n")
-        return
+        return b"+none\r\n"
 
     value = global_store[key]
 
     if isinstance(value, list):
         if all(isinstance(item, dict) and "id" in item for item in value):
-            conn.sendall(b"+stream\r\n")
+            return b"+stream\r\n"
         else:
-            conn.sendall(b"+list\r\n")
+            return b"+list\r\n"
     else:
-        conn.sendall(b"+string\r\n") 
+        return b"+string\r\n" 
 
 def validate_xadd_id(key, id):
     if len(global_store[key]) == 0:
@@ -178,17 +166,14 @@ def handle_xadd(conn, parts):
     id = parts[6]
     field_value_pairs = parts[8:len(parts):2]  # Get all field-value pairs
     if id == "0-0":
-        conn.sendall(f"-ERR The ID specified in XADD must be greater than {id}\r\n".encode())
-        return
+        return f"-ERR The ID specified in XADD must be greater than {id}\r\n".encode()
     if key not in global_store:
         global_store[key] = []  # Initialize as a list for stream entries
     elif not isinstance(global_store[key], list):
-        conn.sendall(b"-ERR wrong type\r\n")
-        return
+        return b"-ERR wrong type\r\n"
     id = generate_xadd_id(key, id)
     if not validate_xadd_id(key, id):
-        conn.sendall(b"-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n")
-        return  
+        return b"-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
     entry = {"id": id}
     for i in range(0, len(field_value_pairs), 2):
         field = field_value_pairs[i]
@@ -198,7 +183,7 @@ def handle_xadd(conn, parts):
     with cond:
         global_store[key].append(entry)
         cond.notify()
-    conn.sendall(f"${len(id)}\r\n{id}\r\n".encode())
+    return f"${len(id)}\r\n{id}\r\n".encode()
 
 def handle_xrange(conn, parts):
     key = parts[4]
@@ -206,8 +191,7 @@ def handle_xrange(conn, parts):
     end_id = parts[8]
     
     if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
-        conn.sendall(f"*0\r\n".encode())
-        return
+        return f"*0\r\n".encode()
 
     entries = []
     for entry in global_store[key]:
@@ -215,21 +199,21 @@ def handle_xrange(conn, parts):
         if (start_id == "-" or entry_id >= start_id) and (end_id == "+" or entry_id <= end_id):
             entries.append(entry)
         
-
-    conn.sendall(f"*{len(entries)}\r\n".encode())
+    response = [f"*{len(entries)}\r\n"]
     for entry in entries:
-        conn.sendall(f"*2\r\n".encode())
-        conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
+        response.append(f"*2\r\n")
+        response.append(f"${len(entry['id'])}\r\n{entry['id']}\r\n")
 
         flat = []
         for k, v in entry.items():
             if k != "id":
                 flat.extend([k, v])
 
-        conn.sendall(f"*{len(flat)}\r\n".encode())
-
+        response.append(f"*{len(flat)}\r\n")
         for item in flat:
-            conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+            response.append(f"${len(item)}\r\n{item}\r\n")
+
+    return "\r\n".join(response).encode()
 def handle_xread(conn, parts):
     streams_index = parts.index("streams")
     args = parts[streams_index + 2::2]  # Skip "$len" elements
@@ -259,19 +243,16 @@ def handle_xread(conn, parts):
             print("success =", success,"timeout =", timeout)
     
             if not success:
-                conn.sendall(b"*-1\r\n")
-                return
+                return b"*-1\r\n"
             
-    
 
-    conn.sendall(f"*{len(keys)}\r\n".encode()) 
+    response = [f"*{len(keys)}\r\n"]
     for key, last_id in zip(keys, ids):
         if last_id == '$' and dollar_id is not None:
             last_id = dollar_id
         print(f"Fetching entries from stream '{key}' after ID '{last_id}'")
         if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
-                conn.sendall(f"*0\r\n".encode())
-                return
+                return f"*0\r\n".encode()
         entries = []
         print(f"global_store[{key}]: {global_store[key]}")
         for entry in global_store[key]:
@@ -279,22 +260,23 @@ def handle_xread(conn, parts):
             if (entry_id > last_id):
                 entries.append(entry)
         
-        conn.sendall(b"*2\r\n")                  # [stream name, entries]
-        conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
-        conn.sendall(f"*{len(entries)}\r\n".encode())
+        response.append(b"*2\r\n")                  # [stream name, entries]
+        response.append(f"${len(key)}\r\n{key}\r\n".encode())
+        response.append(f"*{len(entries)}\r\n".encode())
         for entry in entries:
-            conn.sendall(b"*2\r\n")
-            conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
+            response.append(b"*2\r\n")
+            response.append(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
 
             flat = []
             for k, v in entry.items():
                 if k != "id":
                     flat.extend([k, v])
 
-            conn.sendall(f"*{len(flat)}\r\n".encode())
+            response.append(f"*{len(flat)}\r\n".encode())
 
             for item in flat:
-                conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+                response.append(f"${len(item)}\r\n{item}\r\n".encode())
+    return "\r\n".join(response).encode()
 def handle_incr(conn, parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
@@ -313,6 +295,17 @@ def handle_multi(conn, transaction):
     transaction["queue"] = []
     conn.sendall(b"+OK\r\n")
 
+def handle_exec(conn, transaction):
+    if not transaction["in_multi"]:
+        conn.sendall(b"-ERR EXEC without MULTI\r\n")
+        return
+    transaction["in_multi"] = False
+    responses = []
+    for parts in transaction["queue"]:
+        response = parse_command(conn, "\r\n".join(parts) + "\r\n", transaction)
+        responses.append(response)
+    return "\r\n".join(responses).encode()
+
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -323,38 +316,40 @@ def parse_command(conn, data, transaction):
     print(f"Parsed command: {command}")
     match command:
         case "PING":
-            conn.sendall(b"+PONG\r\n") 
+            return b"+PONG\r\n"
         case "ECHO":
             message = parts[4]
-            conn.sendall(f"${len(message)}\r\n{message}\r\n".encode())
+            return f"${len(message)}\r\n{message}\r\n".encode()
         case "SET":
-            handle_set_with_expiry(conn, parts)
+            return handle_set_with_expiry(conn, parts)
         case "GET":
-            handle_get_with_expiry(conn, parts)
+            return handle_get_with_expiry(conn, parts)
         case "RPUSH":
-            handle_rpush(conn, parts)
+            return handle_rpush(conn, parts)
         case "LRANGE":
-            handle_lrange(conn, parts)
+            return handle_lrange(conn, parts)
         case "LPUSH":
-            handle_lpush(conn, parts)
+            return handle_lpush(conn, parts)
         case "LLEN":
-            handle_llen(conn, parts)
+            return handle_llen(conn, parts)
         case "LPOP":
-            handle_lpop(conn, parts)
+            return handle_lpop(conn, parts)
         case "BLPOP":
-            handle_blpop(conn, parts)  
+            return handle_blpop(conn, parts)  
         case "TYPE":
-            handle_type(conn, parts)
+            return handle_type(conn, parts)
         case "XADD":
-            handle_xadd(conn, parts)
+            return handle_xadd(conn, parts)
         case "XRANGE":
-            handle_xrange(conn, parts)
+            return handle_xrange(conn, parts)
         case "XREAD":
-            handle_xread(conn, parts)
+            return handle_xread(conn, parts)
         case "INCR":
-            handle_incr(conn, parts)
+            return handle_incr(conn, parts)
         case "MULTI":
-            handle_multi(conn, transaction)
+            return handle_multi(conn, transaction)
+        case "EXEC":
+            return handle_exec(conn, transaction)
         case _:
             print(f"Unknown command: {command}")
 
@@ -364,7 +359,8 @@ def handle(conn):
         "queue": []
     }
     while data := conn.recv(1024):
-        parse_command(conn, data, transaction)
+        response = parse_command(conn, data, transaction)
+        conn.sendall(response.encode() if response else b"")
 
 
 def main():
