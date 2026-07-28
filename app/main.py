@@ -239,7 +239,7 @@ def handle_xread(conn, parts):
         timeout = block_time / 1000.0
         key = keys[0]  # Assuming only one key for simplicity
         id = ids[0]  # Corresponding ID for the key
-        cond = get_condition(key+id)
+        cond = get_condition(key)
         with cond:
             success = cond.wait_for(
                 lambda: (
