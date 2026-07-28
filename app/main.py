@@ -308,10 +308,18 @@ def handle_incr(conn, parts):
             return
     global_store[key] = (str(new_value), expiry_time)
     conn.sendall(f":{new_value}\r\n".encode())
-def parse_command(conn, data):
+def handle_multi(conn, transaction):
+    transaction["in_multi"] = True
+    transaction["queue"] = []
+    conn.sendall(b"+OK\r\n")
+
+def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
-    
+    if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI"):
+        transaction["queue"].append(parts)
+        conn.sendall(b"+QUEUED\r\n")
+        return
     print(f"Parsed command: {command}")
     match command:
         case "PING":
@@ -345,12 +353,18 @@ def parse_command(conn, data):
             handle_xread(conn, parts)
         case "INCR":
             handle_incr(conn, parts)
+        case "MULTI":
+            handle_multi(conn, transaction)
         case _:
             print(f"Unknown command: {command}")
 
 def handle(conn):
+    transaction = {
+        "in_multi": False,
+        "queue": []
+    }
     while data := conn.recv(1024):
-        parse_command(conn, data)
+        parse_command(conn, data, transaction)
 
 
 def main():
