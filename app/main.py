@@ -239,7 +239,7 @@ def handle_xread(conn, parts):
     print(f"parts: {parts}")
     if parts[4].upper() == "BLOCK":
         block_time = int(parts[6])
-        timeout = block_time / 1000.0
+        timeout = block_time / 1000.0 if block_time > 0 else None
         key = keys[0]  # Assuming only one key for simplicity
         last_id = ids[0]  # Corresponding ID for the key
         cond = get_condition(key)
