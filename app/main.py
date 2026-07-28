@@ -194,8 +194,10 @@ def handle_xadd(conn, parts):
         field = field_value_pairs[i]
         value = field_value_pairs[i + 1]
         entry[field] = value
-
-    global_store[key].append(entry)
+    cond = get_condition(key)
+    with cond:
+        global_store[key].append(entry)
+        cond.notify()
     conn.sendall(f"${len(id)}\r\n{id}\r\n".encode())
 
 def handle_xrange(conn, parts):
@@ -238,7 +240,7 @@ def handle_xread(conn, parts):
         block_time = int(parts[6])
         timeout = block_time / 1000.0
         key = keys[0]  # Assuming only one key for simplicity
-        id = ids[0]  # Corresponding ID for the key
+        last_id = ids[0]  # Corresponding ID for the key
         cond = get_condition(key)
         with cond:
             success = cond.wait_for(
