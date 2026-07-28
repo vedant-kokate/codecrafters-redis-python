@@ -234,11 +234,16 @@ def handle_xread(conn, parts):
     if parts[4] == "BLOCK":
         block_time = int(parts[6])
         timeout = block_time / 1000.0
-        cond = get_condition(key)
+        key = args[4]  # Assuming only one key for simplicity
+        id = args[5]  # Corresponding ID for the key
+        cond = get_condition(key+id)
         with cond:
             success = cond.wait_for(
-                lambda: key in global_store and isinstance(global_store[key], list) and len(global_store[key]) > 0,
-                timeout=timeout
+                lambda: (
+                    key in global_store
+                    and any(entry["id"] > last_id for entry in global_store[key])
+                ),
+                timeout=timeout,
             )
             print("success =", success,"timeout =", timeout)
     
