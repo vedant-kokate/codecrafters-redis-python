@@ -229,33 +229,39 @@ def handle_xrange(conn, parts):
         for item in flat:
             conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 def handle_xread(conn, parts):
-    key, last_id = parts[6], parts[8]
-    if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
-            conn.sendall(f"*0\r\n".encode())
-            return
-    entries = []
-    for entry in global_store[key]:
-        entry_id = entry["id"]
-        if (last_id == "-" or entry_id >= last_id):
-            entries.append(entry)
-    
-    conn.sendall(b"*1\r\n")                     # outer array
-    conn.sendall(b"*2\r\n")                     # [stream name, entries]
-    conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
-    conn.sendall(f"*{len(entries)}\r\n".encode())   # entries array
-    for entry in entries:
-        conn.sendall(b"*2\r\n")
-        conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
+    keys_and_ids = parts[4:len(parts):2]
+    keys =[]
+    ids =[] # Get all keys and their corresponding last IDs
+    for i in range(0, len(keys_and_ids), 2):
+        keys.append(keys_and_ids[i])
+        ids.append(keys_and_ids[i + 1])
+    for key, last_id in zip(keys, ids):
+        if not (key in global_store and isinstance(global_store[key], list) and all(isinstance(entry, dict) and "id" in entry for entry in global_store[key])):
+                conn.sendall(f"*0\r\n".encode())
+                return
+        entries = []
+        for entry in global_store[key]:
+            entry_id = entry["id"]
+            if (last_id == "-" or entry_id >= last_id):
+                entries.append(entry)
+        
+        conn.sendall(b"*1\r\n")                     # outer array
+        conn.sendall(b"*2\r\n")                     # [stream name, entries]
+        conn.sendall(f"${len(key)}\r\n{key}\r\n".encode())
+        conn.sendall(f"*{len(entries)}\r\n".encode())   # entries array
+        for entry in entries:
+            conn.sendall(b"*2\r\n")
+            conn.sendall(f"${len(entry['id'])}\r\n{entry['id']}\r\n".encode())
 
-        flat = []
-        for k, v in entry.items():
-            if k != "id":
-                flat.extend([k, v])
+            flat = []
+            for k, v in entry.items():
+                if k != "id":
+                    flat.extend([k, v])
 
-        conn.sendall(f"*{len(flat)}\r\n".encode())
+            conn.sendall(f"*{len(flat)}\r\n".encode())
 
-        for item in flat:
-            conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
+            for item in flat:
+                conn.sendall(f"${len(item)}\r\n{item}\r\n".encode())
 
 def parse_command(conn, data):
     parts = data.decode().split("\r\n")
