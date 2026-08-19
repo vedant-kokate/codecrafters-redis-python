@@ -6,6 +6,9 @@ global_store = {}
 conditions = {}
 conditions_lock = threading.Lock()
 
+key_versions = {}
+key_versions_lock = threading.Lock()
+
 def bulk(s):
     return f"${len(s)}\r\n{s}\r\n".encode()
 
@@ -20,6 +23,14 @@ def get_condition(key):
         if key not in conditions:
             conditions[key] = threading.Condition()
         return conditions[key]
+
+def get_key_version(key):
+    with key_versions_lock:
+        return key_versions.get(key, 0)
+
+def increment_key_version(key):
+    with key_versions_lock:
+        key_versions[key] = key_versions.get(key, 0) + 1
 
 def handle_get_with_expiry(conn, parts):
     key = parts[4]
@@ -38,10 +49,12 @@ def handle_set_with_expiry(conn, parts):
         try:
             expiry_time = time.time() + int(parts[10]) / 1000  # Convert milliseconds to seconds
             global_store[key] = (value, expiry_time)
+            increment_key_version(key)
         except ValueError:
             print(f"Invalid expiry time: {parts[10]}")
     else:
         global_store[key] = (value, None)
+        increment_key_version(key)
     return b"+OK\r\n"
 
 def handle_rpush(conn, parts):
@@ -54,6 +67,7 @@ def handle_rpush(conn, parts):
         elif not isinstance(global_store[key], list):
             return b"-ERR wrong type\r\n"
         global_store[key].extend(value)
+        increment_key_version(key)
         cond.notify()
     return integer(len(global_store[key]))
 
@@ -76,6 +90,7 @@ def handle_lpush(conn, parts):
         return b"-ERR wrong type\r\n"
     global_store[key] = value[::-1] + global_store[key]  # Prepend values
     print(f"global_store[{key}]: {global_store[key]}")
+    increment_key_version(key)
     return integer(len(global_store[key]))
 
 def handle_llen(conn, parts):
@@ -101,6 +116,7 @@ def handle_lpop(conn, parts):
     
     for item in popped_items:
         response.append(bulk(item))
+    increment_key_version(key)
     return  b"".join(response)
 
 def handle_blpop(conn, parts):
@@ -119,6 +135,7 @@ def handle_blpop(conn, parts):
             return b"*-1\r\n"
 
         item = global_store[key].pop(0)
+        increment_key_version(key)
         return(
             array(2)
             + bulk(key)
@@ -191,6 +208,7 @@ def handle_xadd(conn, parts):
     cond = get_condition(key)
     with cond:
         global_store[key].append(entry)
+        increment_key_version(key)
         cond.notify()
     return f"${len(id)}\r\n{id}\r\n".encode()
 
@@ -297,7 +315,9 @@ def handle_incr(conn, parts):
         except ValueError:
             return b"-ERR value is not an integer or out of range\r\n"
     global_store[key] = (str(new_value), expiry_time)
+    increment_key_version(key)
     return integer(new_value)
+
 def handle_multi(conn, transaction):
     transaction["in_multi"] = True
     transaction["queue"] = []
@@ -306,6 +326,14 @@ def handle_multi(conn, transaction):
 def handle_exec(conn, transaction):
     if not transaction["in_multi"]:
         return b"-ERR EXEC without MULTI\r\n"
+
+    for key, watched_version in transaction["watched_keys"].items():
+        if get_key_version(key) != watched_version:
+            transaction["in_multi"] = False
+            transaction["queue"].clear()
+            transaction["watched_keys"].clear()
+
+            return b"*-1\r\n"
 
     transaction["in_multi"] = False
 
@@ -320,6 +348,7 @@ def handle_exec(conn, transaction):
         responses.append(response)
 
     transaction["queue"].clear()
+    transaction["watched_keys"].clear()
 
     return array(len(responses)) + b"".join(responses)
 
@@ -329,15 +358,32 @@ def handle_discard(conn, transaction):
 
     transaction["in_multi"] = False
     transaction["queue"].clear()
+    transaction["watched_keys"].clear()
+
+    return b"+OK\r\n"
+
+def handle_watch(conn, parts, transaction):
+    if transaction["in_multi"]:
+        return b"-ERR WATCH inside MULTI is not allowed\r\n"
+
+    keys = parts[4::2]
+
+    for key in keys:
+        transaction["watched_keys"][key] = get_key_version(key)
+
+    return b"+OK\r\n"
+
+def handle_unwatch(conn, transaction):
+    transaction["watched_keys"].clear()
     return b"+OK\r\n"
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
-    if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI"):
+    if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n"
-    print(f"Parsed command: {command}")
+
     match command:
         case "PING":
             return b"+PONG\r\n"
@@ -376,13 +422,18 @@ def parse_command(conn, data, transaction):
             return handle_exec(conn, transaction)
         case "DISCARD":
             return handle_discard(conn, transaction)
+        case "WATCH":
+            return handle_watch(conn, parts, transaction)
+        case "UNWATCH":
+            return handle_unwatch(conn, transaction)
         case _:
             print(f"Unknown command: {command}")
 
 def handle(conn):
     transaction = {
         "in_multi": False,
-        "queue": []
+        "queue": [],
+        "watched_keys": {}
     }
     while data := conn.recv(1024):
         response = parse_command(conn, data, transaction)
