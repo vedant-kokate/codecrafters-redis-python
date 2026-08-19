@@ -1,3 +1,4 @@
+import argparse
 import socket  # noqa: F401
 import threading
 import time
@@ -442,7 +443,10 @@ def handle(conn):
 
 
 def main():
-    with socket.create_server(("localhost", 6379), reuse_port=True) as server:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=6379)
+    args = parser.parse_args()
+    with socket.create_server(("localhost", args.port), reuse_port=True) as server:
         while True:
             connection, _ = server.accept() 
             threading.Thread(target=handle, args=(connection,)).start()
