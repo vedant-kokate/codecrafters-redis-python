@@ -454,12 +454,23 @@ def parse_command(conn, data, transaction):
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
-    handler = COMMAND_HANDLERS.get(command)
 
-    if handler:
+    if command == "REPLCONF":
+        response = handle_replconf(conn, parts)
+        override = parts[4].upper() == "GETACK"
+
+    else:
+        handler = COMMAND_HANDLERS.get(command)
+
+        if not handler:
+            print(f"Unknown command: {command}")
+            return None, False
+
         response, override = handler(conn, parts, transaction)
-    if command not in ("PSYNC"):
+
+    if command != "PSYNC" and command != "REPLCONF":
         server["offset"] += len(data)
+
     return response, override
 
 def split_commands(data):
