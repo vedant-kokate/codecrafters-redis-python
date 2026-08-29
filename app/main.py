@@ -457,19 +457,10 @@ def check_replica_sync(target_offset, num_replicas, timeout):
 
 def handle_wait(parts):
     num_replicas = int(parts[4])
-    timeout = int(parts[6]) / 1000.0  # Convert milliseconds to seconds
-    start_time = time.time()
+    timeout = int(parts[6]) / 1000
 
-    while True:
-        with replicas_lock:
-            if len(replicas) >= num_replicas and check_replica_sync(target_offset=server["offset"], num_replicas=num_replicas):
-                return integer(len(replicas))
-
-        elapsed_time = time.time() - start_time
-        if elapsed_time >= timeout:
-            with replicas_lock:
-                return integer(len(replicas))
-        time.sleep(0.01)  # Sleep for a short duration to avoid busy waiting
+    synced = check_replica_sync(server["offset"], num_replicas, timeout)
+    return integer(synced)
 
 def propogate_to_replicas(data):
     command = data[2::2]
