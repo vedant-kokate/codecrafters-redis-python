@@ -516,8 +516,7 @@ def parse_command(conn, data, transaction, is_master=False):
             return None, False
         response, override = handler(conn, parts, transaction)
 
-    # Unchanged from before — this is your YD3 logic, untouched.
-    if is_master and command not in ("REPLCONF", "PSYNC"):
+    if is_master and command != "PSYNC":
         server["offset"] += len(data)
 
     return response, override
