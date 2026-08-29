@@ -459,6 +459,8 @@ def replication_handling(args):
             (master_host, int(master_port))
         )
     master.sendall(array(1)+bulk("PING"))
+    master.sendall(array(1)+bulk("REPLCONF listening-port 6380"))
+    master.sendall(array(1)+bulk("REPLCONF capa psync2"))
             
 
 def main():
