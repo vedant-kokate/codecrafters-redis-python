@@ -47,6 +47,10 @@ server = {
     "role": "master",
     "master_conn": None,
     "offset": 0,
+    "appendonly": "no",
+    "appenddirname":"appendonlydir",
+    "appendfilename":"appendonly.aof",
+    "appendfsync": "everysec"
 }
 
 replicas_lock = threading.Lock()
