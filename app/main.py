@@ -696,6 +696,9 @@ def set_server(args):
     server["appendfilename"] = args.appendfilename or "appendonly.aof"
     server["appendfsync"] = args.appendfsync or "everysec"
 
+    if server["appendonly"] == "yes":
+        Path(server["dir"], server["appenddirname"]).mkdir(parents=True, exist_ok=True)
+
     if server["dir"] and server["dbfilename"]:
         path = Path(server["dir"]) / server["dbfilename"]
         if path.exists():
