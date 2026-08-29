@@ -506,7 +506,7 @@ def parse_command(conn, data, transaction):
         return b"+QUEUED\r\n", False
 
     if command == "REPLCONF":
-        response = handle_replconf(parts)
+        response = handle_replconf(conn, parts)
         override = parts[4].upper() == "GETACK"
 
     else:
