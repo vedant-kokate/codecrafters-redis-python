@@ -459,8 +459,17 @@ def replication_handling(args):
             (master_host, int(master_port))
         )
     master.sendall(array(1)+bulk("PING"))
-    master.sendall(array(1)+bulk("REPLCONF listening-port 6380"))
-    master.sendall(array(1)+bulk("REPLCONF capa psync2"))
+    response = master.recv(1024)
+    print(response)
+
+    master.sendall(array(3) + bulk("REPLCONF") + bulk("listening-port") + bulk("6380"))
+
+    response = master.recv(1024)
+    print(response)
+
+    master.sendall(array(3) + bulk("REPLCONF") + bulk("capa") + bulk("psync2"))
+    response = master.recv(1024)
+    print(response)
             
 
 def main():
