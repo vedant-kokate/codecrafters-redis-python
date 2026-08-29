@@ -414,9 +414,14 @@ def propogate_to_replicas(data):
                 replica.sendall(array(len(command)) + b"".join(bulk(cmd) for cmd in command))
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
+                
 def handle_replconf(conn, parts):
-    print(f"Received REPLCONF from replica: {parts}")
-    return array(3) + bulk("REPLICAOF") + bulk("ACK") + bulk("0")
+    print(f"Received REPLCONF: {parts}")
+
+    if parts[4].upper() == "GETACK":
+        return array(3) + bulk("REPLCONF") + bulk("ACK") + bulk("0")
+
+    return b"+OK\r\n"
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
@@ -469,8 +474,6 @@ def parse_command(conn, data, transaction):
             return handle_unwatch(conn, transaction)
         case "INFO":
             return handle_info(conn, parts)
-        case "REPLCONF":
-            return b"+OK\r\n"
         case "PSYNC":
             return handle_psync(conn, parts)
         case "REPLCONF":
