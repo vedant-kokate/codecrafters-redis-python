@@ -560,7 +560,7 @@ def handle_data(conn, data, transaction, is_master):
             response, should_respond = parse_command(
                 conn, command, transaction
             )
-
+            server["offset"] += len(data)
             if should_respond and response:
                 conn.sendall(response)
     else:
@@ -569,7 +569,7 @@ def handle_data(conn, data, transaction, is_master):
         if response:
             conn.sendall(response)
 
-    server["offset"] += len(data)
+        server["offset"] += len(data)
 
 def handle(conn):
     transaction = {
