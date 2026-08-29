@@ -428,11 +428,6 @@ def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
 
-    # Replication offset counts commands sent by the master,
-    # excluding handshake/control commands.
-    if command not in ("REPLCONF", "PSYNC"):
-        server["offset"] += len(data)
-
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
@@ -516,6 +511,10 @@ def parse_command(conn, data, transaction):
         case _:
             print(f"Unknown command: {command}")
             return None, False
+
+    if command not in ("PSYNC"):
+        server["offset"] += len(data)
+
 def split_commands(data):
     commands = []
     pos = 0
