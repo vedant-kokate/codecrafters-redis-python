@@ -436,7 +436,7 @@ def check_replica_sync(target_offset, num_replicas):
     for replica in replicas:
         try:
             print(f"Checking replica sync for target offset {target_offset}")
-            replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*")))
+            replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
             response = replica.recv(1024)
             if not response.startswith(b":"):
                 print(f"Unexpected response from replica: {response}")
