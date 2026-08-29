@@ -404,13 +404,13 @@ def handle_psync(conn, parts):
             )
 
 def propogate_to_replicas(data):
-    command = array(*data[2::2])
+    command = data[2::2]
     print(f"Propagating data to replicas: {data}")
     print(f"Current replicas: {replicas}")
     with replicas_lock:
         for replica in replicas:
             try:
-                replica.sendall(command)
+                replica.sendall(array(len(command)) + b"".join(bulk(cmd) for cmd in command))
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
     
