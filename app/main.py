@@ -385,7 +385,7 @@ def handle_info(conn, parts):
     return bulk("\r\n".join(response))
 
 def handle_psync(conn, parts):
-    return "+FULLRESYNC ? 0\r\n"
+    return b"+FULLRESYNC ? 0\r\n"
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
