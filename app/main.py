@@ -410,7 +410,7 @@ def propogate_to_replicas(data):
     with replicas_lock:
         for replica in replicas:
             try:
-                replica.sendall(data)
+                replica.sendall(command)
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
     
