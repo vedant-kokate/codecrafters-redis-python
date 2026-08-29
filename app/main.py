@@ -510,8 +510,12 @@ def replication_handling(args):
     print(response)
 
     master.sendall(array(3) + bulk("PSYNC") + bulk("?") + bulk("-1"))
+
     response = master.recv(1024)
-    print(response)
+    print(response)  # FULLRESYNC
+
+    rdb = master.recv(1024)
+    print(rdb)       # RDB
 
     server["master_conn"] = master
     threading.Thread(target=handle, args=(master,), daemon=True).start()
