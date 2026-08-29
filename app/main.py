@@ -505,6 +505,7 @@ def handle_replconf(conn, parts):
 def handle_config(parts):
     command = parts[2::2]
     param = command[2]
+    print(f"Received CONFIG command: {command} and server[param]: {server[param]}")
     return array(2) + bulk(param) + bulk(server[param]) 
 
 
