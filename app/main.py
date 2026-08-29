@@ -415,6 +415,7 @@ def propogate_to_replicas(data):
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
 def handle_replconf(conn, parts):
+    print(f"Received REPLCONF from replica: {parts}")
     return array(3) + bulk("REPLICAOF") + bulk("ACK") + bulk("0")
     
 def parse_command(conn, data, transaction):
