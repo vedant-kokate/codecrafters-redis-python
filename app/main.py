@@ -515,42 +515,42 @@ def parse_command(conn, data, transaction):
 
 def split_commands(data):
     commands = []
+    pos = 0
 
-    while data:
-        # Array header: *<count>\r\n
-        if not data.startswith(b"*"):
+    while pos < len(data):
+        start = data.find(b"*", pos)
+
+        if start == -1:
             break
 
-        line_end = data.find(b"\r\n")
+        line_end = data.find(b"\r\n", start)
         if line_end == -1:
             break
 
-        count = int(data[1:line_end])
-        pos = line_end + 2
+        count = int(data[start + 1:line_end])
+        command_pos = line_end + 2
 
-        # Read exactly `count` RESP elements
         for _ in range(count):
-            if pos >= len(data) or data[pos:pos + 1] != b"$":
+            if command_pos >= len(data) or data[command_pos:command_pos + 1] != b"$":
                 break
 
-            length_end = data.find(b"\r\n", pos)
+            length_end = data.find(b"\r\n", command_pos)
             if length_end == -1:
                 break
 
-            length = int(data[pos + 1:length_end])
-            pos = length_end + 2 + length + 2
+            length = int(data[command_pos + 1:length_end])
+            command_pos = length_end + 2 + length + 2
 
         else:
-            # `pos` is now immediately after one complete command
-            commands.append(data[:pos])
-            data = data[pos:]
+            commands.append(data[start:command_pos])
+            pos = command_pos
             continue
 
-        # Incomplete command
         break
 
     return commands
-        
+
+      
 def handle_data(conn, data, transaction, is_master):
     print(f"RECEIVED FROM {'MASTER' if is_master else 'CLIENT'}: {data!r}")
 
