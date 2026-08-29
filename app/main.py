@@ -14,7 +14,8 @@ conditions_lock = threading.Lock()
 key_versions = {}
 key_versions_lock = threading.Lock()
 server = {
-    "role": "master"
+    "role": "master",
+    "master_conn": None
 }
 
 replicas_lock = threading.Lock()
@@ -478,10 +479,12 @@ def handle(conn):
         "queue": [],
         "watched_keys": {}
     }
+    is_master = conn == server["master_conn"]
     while data := conn.recv(1024):
         response = parse_command(conn, data, transaction)
         print(f"Response: {response}")
-        conn.sendall(response if response else b"")
+        if not is_master:
+            conn.sendall(response if response else b"")
 
 def replication_handling(args):
     args_replicaof = args.replicaof
@@ -508,6 +511,8 @@ def replication_handling(args):
     master.sendall(array(3) + bulk("PSYNC") + bulk("?") + bulk("-1"))
     response = master.recv(1024)
     print(response)
+
+    server["master_conn"] = master
             
 
 def main():
