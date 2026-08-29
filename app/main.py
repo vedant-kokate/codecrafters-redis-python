@@ -3,7 +3,7 @@ import socket  # noqa: F401
 import threading
 import time
 import base64
-import selectors
+import select
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -431,29 +431,25 @@ def handle_psync(conn, parts):
             )
 
 def check_replica_sync(target_offset, num_replicas, timeout):
-    sel = selectors.DefaultSelector()
-
-    for r in replicas:
-        r.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
-        sel.register(r, selectors.EVENT_READ)
+    for replica in replicas:
+        replica.sendall(
+            array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*")
+        )
 
     synced = 0
-    end = time.time() + timeout
+    end = time.time() + timeout / 1000
 
-    while synced < num_replicas:
-        events = sel.select(max(0, end - time.time()))
-        if not events:
-            break
+    while synced < num_replicas and time.time() < end:
+        readable, _, _ = select.select(
+            replicas, [], [], max(0, end - time.time())
+        )
 
-        for key, _ in events:
-            response = key.fileobj.recv(1024)
-            ack_offset = int(response.split(b"\r\n")[-2])
-            if ack_offset >= target_offset:
-                synced += 1
-            sel.unregister(key.fileobj)
+        for replica in readable:
+            response = replica.recv(1024)
+            if b"ACK" in response:
+                synced += int(response.split(b"\r\n")[-2]) >= target_offset
 
-    sel.close()
-    return synced
+    return synced >= num_replicas
 
 
 def handle_wait(parts):
