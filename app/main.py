@@ -455,7 +455,7 @@ def handle_wait(parts):
 
     while True:
         with replicas_lock:
-            if len(replicas) >= num_replicas and check_replica_syn(target_offset=server["offset"], num_replicas):
+            if len(replicas) >= num_replicas and check_replica_syn(target_offset=server["offset"], num_replicas=num_replicas):
                 return integer(len(replicas))
 
         elapsed_time = time.time() - start_time
