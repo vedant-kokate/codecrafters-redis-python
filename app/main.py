@@ -673,7 +673,7 @@ def load_rdb(data):
         i += 1  # value type
         key, i = read_string(data, i)
         value, i = read_string(data, i)
-        global_store[key] = value
+        global_store[key] = (value, None)
 
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
