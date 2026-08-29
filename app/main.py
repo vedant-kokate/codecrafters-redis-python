@@ -524,6 +524,7 @@ def handle(conn):
         if is_master:
             print(f"RECEIVED FROM {'MASTER'}: {data!r}")
             commands = data.split(b"*3\r\n")
+            print(f"Split commands: {commands}")
             for command in commands:
                 if command:
                     command = b"*3\r\n" + command
