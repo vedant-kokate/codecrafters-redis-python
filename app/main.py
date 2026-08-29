@@ -521,7 +521,6 @@ def handle(conn):
     }
     is_master = conn == server["master_conn"]
     while data := conn.recv(1024):
-        server["offset"] += len(data)
         if is_master:
             print(f"RECEIVED FROM {'MASTER'}: {data!r}")
             commands = data.split(b"*3\r\n")
@@ -535,6 +534,7 @@ def handle(conn):
             print(f"RECEIVED FROM {'CLIENT'}: {data!r}")
             response, _ = parse_command(conn, data, transaction)
             conn.sendall(response if response else b"")
+        server["offset"] += len(data)
 
 def replication_handling(args):
     args_replicaof = args.replicaof
