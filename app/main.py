@@ -431,10 +431,11 @@ def handle_psync(conn, parts):
 
 def check_replica_syn(target_offset, num_replicas):
     synced = 0
-    print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
+    # print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
     with replicas_lock:
         for replica in replicas:
             try:
+                print(f"Checking replica sync for target offset {target_offset}")
                 replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk(str(target_offset)))
                 response = replica.recv(1024)
                 if not response.startswith(b":"):
