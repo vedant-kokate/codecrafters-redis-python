@@ -379,6 +379,8 @@ def handle_unwatch(conn, transaction):
     return b"+OK\r\n"
 
 def handle_info(conn, parts):
+    response = "# Replication\r\nrole:master\r\n"
+    return bulk(response)
     responses = ["master"]
     return  b"".join(bulk(response) for response in responses)
     
