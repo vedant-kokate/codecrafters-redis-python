@@ -5,7 +5,30 @@ import time
 import base64
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
-
+COMMAND_HANDLERS = {
+    "PING": lambda conn, parts, transaction: (b"+PONG\r\n", False),
+    "ECHO": lambda conn, parts, transaction: (bulk(parts[4]), False),
+    "SET": lambda conn, parts, transaction: (handle_set_with_expiry(parts), False),
+    "GET": lambda conn, parts, transaction: (handle_get_with_expiry(parts), False),
+    "RPUSH": lambda conn, parts, transaction: (handle_rpush(parts), False),
+    "LRANGE": lambda conn, parts, transaction: (handle_lrange(parts), False),
+    "LPUSH": lambda conn, parts, transaction: (handle_lpush(parts), False),
+    "LLEN": lambda conn, parts, transaction: (handle_llen(parts), False),
+    "LPOP": lambda conn, parts, transaction: (handle_lpop(parts), False),
+    "BLPOP": lambda conn, parts, transaction: (handle_blpop(parts), False),
+    "TYPE": lambda conn, parts, transaction: (handle_type(parts), False),
+    "XADD": lambda conn, parts, transaction: (handle_xadd(parts), False),
+    "XRANGE": lambda conn, parts, transaction: (handle_xrange(parts), False),
+    "XREAD": lambda conn, parts, transaction: (handle_xread(parts), False),
+    "INCR": lambda conn, parts, transaction: (handle_incr(parts), False),
+    "MULTI": lambda conn, parts, transaction: (handle_multi(conn, transaction), False),
+    "EXEC": lambda conn, parts, transaction: (handle_exec(conn, transaction), False),
+    "DISCARD": lambda conn, parts, transaction: (handle_discard(conn, transaction), False),
+    "WATCH": lambda conn, parts, transaction: (handle_watch(conn, parts, transaction), False),
+    "UNWATCH": lambda conn, parts, transaction: (handle_unwatch(conn, transaction), False),
+    "INFO": lambda conn, parts, transaction: (handle_info(conn, parts), False),
+    "PSYNC": lambda conn, parts, transaction: (handle_psync(conn, parts), False),
+}
 global_store = {}
 
 conditions = {}
@@ -431,89 +454,13 @@ def parse_command(conn, data, transaction):
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
+    handler = COMMAND_HANDLERS.get(command)
 
-    match command:
-        case "PING":
-            return b"+PONG\r\n", False
-
-        case "ECHO":
-            message = parts[4]
-            return bulk(message), False
-
-        case "SET":
-            return handle_set_with_expiry(parts), False
-
-        case "GET":
-            return handle_get_with_expiry(parts), False
-
-        case "RPUSH":
-            return handle_rpush(parts), False
-
-        case "LRANGE":
-            return handle_lrange(parts), False
-
-        case "LPUSH":
-            return handle_lpush(parts), False
-
-        case "LLEN":
-            return handle_llen(parts), False
-
-        case "LPOP":
-            return handle_lpop(parts), False
-
-        case "BLPOP":
-            return handle_blpop(parts), False
-
-        case "TYPE":
-            return handle_type(parts), False
-
-        case "XADD":
-            return handle_xadd(parts), False
-
-        case "XRANGE":
-            return handle_xrange(parts), False
-
-        case "XREAD":
-            return handle_xread(parts), False
-
-        case "INCR":
-            return handle_incr(parts), False
-
-        case "MULTI":
-            return handle_multi(conn, transaction), False
-
-        case "EXEC":
-            return handle_exec(conn, transaction), False
-
-        case "DISCARD":
-            return handle_discard(conn, transaction), False
-
-        case "WATCH":
-            return handle_watch(conn, parts, transaction), False
-
-        case "UNWATCH":
-            return handle_unwatch(conn, transaction), False
-
-        case "INFO":
-            return handle_info(conn, parts), False
-
-        case "PSYNC":
-            return handle_psync(conn, parts), False
-
-        case "REPLCONF":
-            response = handle_replconf(conn, parts)
-
-            if parts[4].upper() == "GETACK":
-                return response, True
-
-            return response, False
-
-        case _:
-            print(f"Unknown command: {command}")
-            return None, False
-
+    if handler:
+        response, override = handler(conn, parts, transaction)
     if command not in ("PSYNC"):
         server["offset"] += len(data)
+    return response, override
 
 def split_commands(data):
     commands = []
