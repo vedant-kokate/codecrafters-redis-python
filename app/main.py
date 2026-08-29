@@ -429,12 +429,23 @@ def handle_psync(conn, parts):
             + rdb
             )
 
-def cehck_replica_syn(target_offset):
+def check_replica_syn(target_offset, num_replicas):
+    synced = 0
     with replicas_lock:
         for replica in replicas:
-            if replica["offset"] < target_offset:
+            try:
+                replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk(str(target_offset)))
+                response = replica.recv(1024)
+                if not response.startswith(b":"):
+                    print(f"Unexpected response from replica: {response}")
+                    return False
+                ack_offset = int(response[1:-2])  # Remove ':' and '\r\n'
+                if ack_offset >= target_offset:
+                    synced += 1
+            except Exception as e:
+                print(f"Error checking replica sync: {e}")
                 return False
-    return True
+    return synced >= num_replicas
 
 
 def handle_wait(parts):
@@ -444,7 +455,7 @@ def handle_wait(parts):
 
     while True:
         with replicas_lock:
-            if len(replicas) >= num_replicas and cehck_replica_syn(target_offset=server["offset"]):
+            if len(replicas) >= num_replicas and check_replica_syn(target_offset=server["offset"], num_replicas):
                 return integer(len(replicas))
 
         elapsed_time = time.time() - start_time
