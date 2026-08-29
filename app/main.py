@@ -451,7 +451,7 @@ def handle(conn):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
-    parser.add_argument("--replicaof", nargs=2)
+    parser.add_argument("--replicaof")
     args = parser.parse_args()
     server["role"] = "slave" if args.replicaof else "master"
     with socket.create_server(("localhost", args.port), reuse_port=True) as server:
