@@ -481,10 +481,16 @@ def handle(conn):
     }
     is_master = conn == server["master_conn"]
     while data := conn.recv(1024):
-        print(f"RECEIVED FROM {'MASTER' if is_master else 'CLIENT'}: {data!r}")
-        response = parse_command(conn, data, transaction)
-        print(f"Response: {response}")
-        if not is_master:
+        if is_master:
+            print(f"RECEIVED FROM {'MASTER'}: {data!r}")
+            commands = data.split(b"*3\r\n")
+            for command in commands:
+                if command:
+                    command = b"*3\r\n" + command
+                    parse_command(conn, command, transaction)
+        else:
+            print(f"RECEIVED FROM {'CLIENT'}: {data!r}")
+            response = parse_command(conn, data, transaction)
             conn.sendall(response if response else b"")
 
 def replication_handling(args):
