@@ -449,7 +449,8 @@ def handle(conn):
         print(f"Response: {response}")
         conn.sendall(response if response else b"")
 
-def replication_handling(args_replicaof):
+def replication_handling(args):
+    args_replicaof = args.replicaof
     if not args_replicaof:
         return
     server["role"] = "slave" if args_replicaof else "master"
@@ -457,7 +458,7 @@ def replication_handling(args_replicaof):
     master = socket.create_connection(
             (master_host, int(master_port))
         )
-    master.sendall(b"*1\r\n$4\r\nPING\r\n")
+    master.sendall(bulk("PING"))
             
 
 def main():
