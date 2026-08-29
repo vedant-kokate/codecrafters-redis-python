@@ -412,7 +412,6 @@ def propogate_to_replicas(data):
                 replica.sendall(data)
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
-                replicas.remove(replica)
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
