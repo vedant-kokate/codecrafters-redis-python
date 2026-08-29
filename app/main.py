@@ -466,7 +466,7 @@ def main():
     parser.add_argument("--port", type=int, default=6379)
     parser.add_argument("--replicaof")
     args = parser.parse_args()
-    replication_handling(args.replicaof)
+    replication_handling(args)
     with socket.create_server(("localhost", args.port), reuse_port=True) as server_socket:
         while True:
             connection, _ = server_socket.accept() 
