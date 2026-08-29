@@ -446,14 +446,23 @@ def handle(conn):
         response = parse_command(conn, data, transaction)
         print(f"Response: {response}")
         conn.sendall(response if response else b"")
-
+def replication_handling(args_replicaof):
+    if not args_replicaof:
+        return
+    server["role"] = "slave" if args_replicaof else "master"
+    master_host, master_port = args_replicaof
+    master = socket.create_connection(
+            (master_host, int(master_port))
+        )
+    master.sendall(b"*1\r\n$4\r\nPING\r\n")
+            
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
-    parser.add_argument("--replicaof")
+    parser.add_argument("--replicaof", nargs=2)
     args = parser.parse_args()
-    server["role"] = "slave" if args.replicaof else "master"
+    replication_handling(args.replicaof)
     with socket.create_server(("localhost", args.port), reuse_port=True) as server_socket:
         while True:
             connection, _ = server_socket.accept() 
