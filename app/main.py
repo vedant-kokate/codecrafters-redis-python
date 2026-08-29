@@ -512,7 +512,66 @@ def parse_command(conn, data, transaction):
         case _:
             print(f"Unknown command: {command}")
             return None, False
+
+def split_commands(data):
+    commands = []
+
+    while data:
+        # Array header: *<count>\r\n
+        if not data.startswith(b"*"):
+            break
+
+        line_end = data.find(b"\r\n")
+        if line_end == -1:
+            break
+
+        count = int(data[1:line_end])
+        pos = line_end + 2
+
+        # Read exactly `count` RESP elements
+        for _ in range(count):
+            if pos >= len(data) or data[pos:pos + 1] != b"$":
+                break
+
+            length_end = data.find(b"\r\n", pos)
+            if length_end == -1:
+                break
+
+            length = int(data[pos + 1:length_end])
+            pos = length_end + 2 + length + 2
+
+        else:
+            # `pos` is now immediately after one complete command
+            commands.append(data[:pos])
+            data = data[pos:]
+            continue
+
+        # Incomplete command
+        break
+
+    return commands
         
+def handle_data(conn, data, transaction, is_master):
+    print(f"RECEIVED FROM {'MASTER' if is_master else 'CLIENT'}: {data!r}")
+
+    if is_master:
+        commands = split_commands(data)
+
+        for command in commands:
+            response, should_respond = parse_command(
+                conn, command, transaction
+            )
+
+            if should_respond and response:
+                conn.sendall(response)
+    else:
+        response, _ = parse_command(conn, data, transaction)
+
+        if response:
+            conn.sendall(response)
+
+    server["offset"] += len(data)
+
 def handle(conn):
     transaction = {
         "in_multi": False,
@@ -520,24 +579,11 @@ def handle(conn):
         "watched_keys": {}
     }
     is_master = conn == server["master_conn"]
-
-    while data := conn.recv(1024):
-        if is_master:
-            print(f"RECEIVED FROM MASTER: {data!r}")
-            commands = data.split(b"*3\r\n")
-            print(f"Split commands: {commands}")
-            for command in commands:
-                if command:
-                    command = b"*3\r\n" + command
-                    response, override = parse_command(conn, command, transaction)
-                    print("OVERRIDE:", override, "RESPONSE:", response)
-                    if override:
-                        conn.sendall(response if response else b"")
-        else:
-            print(f"RECEIVED FROM CLIENT: {data!r}")
-            response, _ = parse_command(conn, data, transaction)
-            conn.sendall(response if response else b"")
-        server["offset"] += len(data)
+    while True:
+        data = conn.recv(1024)
+        if not data:
+            break
+        handle_data(conn, data, transaction, is_master)
 
 def replication_handling(args):
     args_replicaof = args.replicaof
@@ -545,28 +591,32 @@ def replication_handling(args):
         return
     server["role"] = "slave" if args_replicaof else "master"
     master_host, master_port = args_replicaof.split(" ")
-    master = socket.create_connection(
-            (master_host, int(master_port))
-        )
+    master = socket.create_connection((master_host, int(master_port)))
+
     master.sendall(array(1)+bulk("PING"))
     response = master.recv(1024)
-    print(response)
+    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
 
     master.sendall(array(3) + bulk("REPLCONF") + bulk("listening-port") + bulk("6380"))
 
     response = master.recv(1024)
-    print(response)
+    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
+    
 
     master.sendall(array(3) + bulk("REPLCONF") + bulk("capa") + bulk("psync2"))
     response = master.recv(1024)
+    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
     print(response)
 
     master.sendall(array(3) + bulk("PSYNC") + bulk("?") + bulk("-1"))
 
     response = master.recv(1024)
+    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
     print(f"PSYNC response: {response}")  # FULLRESYNC
 
     rdb = master.recv(1024)
+    handle_data(master, rdb, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
+    
     print(f"RDB: {rdb}")       # RDB
 
     server["master_conn"] = master
