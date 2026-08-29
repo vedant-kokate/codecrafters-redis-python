@@ -404,6 +404,8 @@ def handle_psync(conn, parts):
             )
 
 def propogate_to_replicas(data):
+    print(f"Propagating data to replicas: {data}")
+    print(f"Current replicas: {replicas}")
     with replicas_lock:
         for replica in replicas:
             try:
