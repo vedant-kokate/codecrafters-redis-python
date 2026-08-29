@@ -429,8 +429,9 @@ def handle_psync(conn, parts):
             + rdb
             )
 
-def check_replica_syn(target_offset, num_replicas):
+def check_replica_sync(target_offset, num_replicas):
     synced = 0
+    print(f"Checking if {num_replicas} replicas have acknowledged offset {target_offset}")
     # print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
     with replicas_lock:
         for replica in replicas:
@@ -457,7 +458,7 @@ def handle_wait(parts):
 
     while True:
         with replicas_lock:
-            if len(replicas) >= num_replicas and check_replica_syn(target_offset=server["offset"], num_replicas=num_replicas):
+            if len(replicas) >= num_replicas and check_replica_sync(target_offset=server["offset"], num_replicas=num_replicas):
                 return integer(len(replicas))
 
         elapsed_time = time.time() - start_time
