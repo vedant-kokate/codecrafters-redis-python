@@ -433,21 +433,20 @@ def check_replica_sync(target_offset, num_replicas):
     synced = 0
     print(f"Checking if {num_replicas} replicas have acknowledged offset {target_offset}")
     # print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
-    with replicas_lock:
-        for replica in replicas:
-            try:
-                print(f"Checking replica sync for target offset {target_offset}")
-                replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk(str(target_offset)))
-                response = replica.recv(1024)
-                if not response.startswith(b":"):
-                    print(f"Unexpected response from replica: {response}")
-                    return False
-                ack_offset = int(response[1:-2])  # Remove ':' and '\r\n'
-                if ack_offset >= target_offset:
-                    synced += 1
-            except Exception as e:
-                print(f"Error checking replica sync: {e}")
+    for replica in replicas:
+        try:
+            print(f"Checking replica sync for target offset {target_offset}")
+            replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*")))
+            response = replica.recv(1024)
+            if not response.startswith(b":"):
+                print(f"Unexpected response from replica: {response}")
                 return False
+            ack_offset = int(response[1:-2])  # Remove ':' and '\r\n'
+            if ack_offset >= target_offset:
+                synced += 1
+        except Exception as e:
+            print(f"Error checking replica sync: {e}")
+            return False
     return synced >= num_replicas
 
 
