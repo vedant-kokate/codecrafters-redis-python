@@ -28,6 +28,7 @@ COMMAND_HANDLERS = {
     "UNWATCH": lambda conn, parts, transaction: (handle_unwatch(conn, transaction), False),
     "INFO": lambda conn, parts, transaction: (handle_info(conn, parts), False),
     "PSYNC": lambda conn, parts, transaction: (handle_psync(conn, parts), False),
+    "WAIT": lambda conn, parts, transaction: (handle_wait(parts), False),
 }
 global_store = {}
 
@@ -428,6 +429,22 @@ def handle_psync(conn, parts):
             + rdb
             )
 
+def handle_wait(parts):
+    num_replicas = int(parts[4])
+    timeout = int(parts[6]) / 1000.0  # Convert milliseconds to seconds
+    start_time = time.time()
+
+    while True:
+        with replicas_lock:
+            if len(replicas) >= num_replicas:
+                return integer(len(replicas))
+
+        elapsed_time = time.time() - start_time
+        if elapsed_time >= timeout:
+            with replicas_lock:
+                return integer(len(replicas))
+        time.sleep(0.01)  # Sleep for a short duration to avoid busy waiting
+
 def propogate_to_replicas(data):
     command = data[2::2]
     print(f"Propagating data to replicas: {data}")
@@ -446,6 +463,8 @@ def handle_replconf(parts):
         return array(3) + bulk("REPLCONF") + bulk("ACK") + bulk(str(server["offset"]))
 
     return b"+OK\r\n"
+
+
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
