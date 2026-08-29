@@ -692,8 +692,8 @@ def load_rdb(data):
         global_store[key] = (value, expiry)
 
 def set_server(args):
-    server["dir"] = args.dir if args.dir else ""
-    server["dbfilename"] = args.dbfilename if args.dbfilename else ""
+    server["dir"] = args.dir or "/app"
+    server["dbfilename"] = args.dbfilename or "dump.rdb"
     if server["dir"] and server["dbfilename"]:
         path = Path(server["dir"]) / server["dbfilename"]
         if path.exists():
