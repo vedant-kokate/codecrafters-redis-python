@@ -2,6 +2,10 @@ import argparse
 import socket  # noqa: F401
 import threading
 import time
+import base64
+
+EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
+
 global_store = {}
 
 conditions = {}
@@ -385,7 +389,11 @@ def handle_info(conn, parts):
     return bulk("\r\n".join(response))
 
 def handle_psync(conn, parts):
-    return b"+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"
+    rdb = base64.b64decode(EMPTY_RBD_FILE_64)
+    return (b"+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"
+            +
+            bulk(rdb)
+    )
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
