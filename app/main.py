@@ -591,49 +591,81 @@ def replication_handling(args):
     args_replicaof = args.replicaof
     if not args_replicaof:
         return
-    server["role"] = "slave" if args_replicaof else "master"
+    server["role"] = "slave"
     master_host, master_port = args_replicaof.split(" ")
     master = socket.create_connection((master_host, int(master_port)))
 
-    master.sendall(array(1)+bulk("PING"))
-    response = master.recv(1024)
-    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
+    buf = b""
 
-    master.sendall(array(3) + bulk("REPLCONF") + bulk("listening-port") + bulk("6380"))
+    def recv_more():
+        nonlocal buf
+        chunk = master.recv(4096)
+        if not chunk:
+            raise ConnectionError("master closed connection")
+        buf += chunk
 
-    response = master.recv(1024)
-    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
-    
+    def read_line():
+        nonlocal buf
+        while b"\r\n" not in buf:
+            recv_more()
+        line, buf_rest = buf.split(b"\r\n", 1)
+        buf = buf_rest
+        return line
+
+    def read_exact(n):
+        nonlocal buf
+        while len(buf) < n:
+            recv_more()
+        data, buf_rest = buf[:n], buf[n:]
+        buf = buf_rest
+        return data
+
+    master.sendall(array(1) + bulk("PING"))
+    read_line()  # +PONG
+
+    master.sendall(array(3) + bulk("REPLCONF") + bulk("listening-port") + bulk(str(args.port)))
+    read_line()  # +OK
 
     master.sendall(array(3) + bulk("REPLCONF") + bulk("capa") + bulk("psync2"))
-    response = master.recv(1024)
-    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
-    print(response)
+    read_line()  # +OK
 
     master.sendall(array(3) + bulk("PSYNC") + bulk("?") + bulk("-1"))
+    fullresync_line = read_line()
+    print(f"PSYNC response: {fullresync_line}")
 
-    response = master.recv(1024)
-    handle_data(master, response, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
-    print(f"PSYNC response: {response}")  # FULLRESYNC
-
-    rdb = master.recv(1024)
-    handle_data(master, rdb, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
-    
-    print(f"RDB: {rdb}")       # RDB
+    rdb_header = read_line()          # e.g. b"$88"
+    rdb_len = int(rdb_header[1:])
+    rdb = read_exact(rdb_len)
+    print(f"RDB: {rdb!r}")
 
     server["master_conn"] = master
-    threading.Thread(target=handle, args=(master,), daemon=True).start()
-            
+
+    transaction = {"in_multi": False, "queue": [], "watched_keys": {}}
+    # Any bytes already buffered past the RDB (e.g. GETACK/SET that arrived
+    # in the same packet) must still be processed, not dropped.
+    if buf:
+        handle_data(master, buf, transaction, is_master=True)
+
+    def replica_loop():
+        while True:
+            data = master.recv(1024)
+            if not data:
+                break
+            handle_data(master, data, transaction, is_master=True)
+
+    threading.Thread(target=replica_loop, daemon=True).start()           
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
     parser.add_argument("--replicaof")
     args = parser.parse_args()
-    replication_handling(args)
+
+    threading.Thread(target=replication_handling, args=(args,), daemon=True).start()
+
     with socket.create_server(("localhost", args.port), reuse_port=True) as server_socket:
         while True:
-            connection, _ = server_socket.accept() 
+            connection, _ = server_socket.accept()
             threading.Thread(target=handle, args=(connection,)).start()
             
 
