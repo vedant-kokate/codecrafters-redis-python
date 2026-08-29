@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Redis Server",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app/main.py",
+      "args": ["--port", "6385", "--dir", ".", "--dbfilename", "dump.rdb"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

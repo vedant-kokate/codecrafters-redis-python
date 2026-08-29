@@ -3,7 +3,7 @@ import socket  # noqa: F401
 import threading
 import time
 import base64
-import select
+from pathlib import Path
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -660,15 +660,40 @@ def replication_handling(args):
                 break
             handle_data(master, data, transaction, is_master=True)
 
-    threading.Thread(target=replica_loop, daemon=True).start()       
+    threading.Thread(target=replica_loop, daemon=True).start()   
+
+def read_string(data, i):
+    n = data[i]
+    return data[i + 1:i + 1 + n], i + 1 + n
+
+
+def load_rdb(data):
+    i = 9
+    db = {}
+
+    while i < len(data):
+        if data[i] == 0x00:
+            i += 1
+            key, i = read_string(data, i)
+            value, i = read_string(data, i)
+            db[key.decode()] = value.decode()
+        elif data[i] == 0xFF:
+            break
+        else:
+            i += 1
+
+    return db
 
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
     server["dbfilename"] = args.dbfilename if args.dbfilename else None
+    with open(Path(args.dir) / args.dbfilename, "rb") as f:
+        db = load_rdb(f.read())
+        print(db)
+
 def handle_keys(parts):
     search = parts[4]
     return array(0)
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
