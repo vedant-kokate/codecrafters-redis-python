@@ -664,32 +664,22 @@ def replication_handling(args):
 
 def read_string(data, i):
     n = data[i]
-    return data[i + 1:i + 1 + n], i + 1 + n
+    return data[i + 1:i + 1 + n].decode(), i + 1 + n
 
 
 def load_rdb(data):
-    i = 9
-    db = {}
-
-    while i < len(data):
-        if data[i] == 0x00:
-            i += 1
-            key, i = read_string(data, i)
-            value, i = read_string(data, i)
-            db[key.decode()] = value.decode()
-        elif data[i] == 0xFF:
-            break
-        else:
-            i += 1
-
-    return db
+    i = data.index(b"\xfe") + 5
+    while data[i] != 0xff:
+        i += 1  # value type
+        key, i = read_string(data, i)
+        value, i = read_string(data, i)
+        global_store[key] = value
 
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
     server["dbfilename"] = args.dbfilename if args.dbfilename else None
     with open(Path(args.dir) / args.dbfilename, "rb") as f:
-        db = load_rdb(f.read())
-        print(db)
+        load_rdb(f.read())
 
 def handle_keys(parts):
     search = parts[4]
