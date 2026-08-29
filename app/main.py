@@ -698,8 +698,13 @@ def set_server(args):
 
     if server["appendonly"] == "yes":
         path = Path(server["dir"]) / server["appenddirname"]
-        path.mkdir(parents=True, exist_ok=True)
-        (path / f"{server['appendfilename']}.1.incr.aof").touch()
+        path.mkdir(parents=True, exist_ok=True) 
+
+        aof = path / f"{server['appendfilename']}.1.incr.aof"
+        manifest = path / f"{server['appendfilename']}.manifest"
+
+        aof.touch()
+        manifest.write_text(f"file {aof.name} seq 1 type i\n")
 
     if server["dir"] and server["dbfilename"]:
         path = Path(server["dir"]) / server["dbfilename"]
