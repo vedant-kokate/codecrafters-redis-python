@@ -380,7 +380,7 @@ def handle_unwatch(conn, transaction):
 
 def handle_info(conn, parts):
     response = ["# Replication", "role:"+server["role"],"master_replid:"+"8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb", "master_repl_offset:"+"0"]
-    return bulk(response.join("\r\n"))
+    return bulk("\r\n".join(response))
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
