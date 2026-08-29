@@ -9,7 +9,7 @@ conditions_lock = threading.Lock()
 
 key_versions = {}
 key_versions_lock = threading.Lock()
-
+server = {}
 def bulk(s):
     return f"${len(s)}\r\n{s}\r\n".encode()
 
@@ -379,10 +379,8 @@ def handle_unwatch(conn, transaction):
     return b"+OK\r\n"
 
 def handle_info(conn, parts):
-    response = "# Replication\r\nrole:master\r\n"
+    response = "# Replication\r\nrole:{}\r\n".format(server["role"])
     return bulk(response)
-    responses = ["master"]
-    return  b"".join(bulk(response) for response in responses)
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
@@ -453,7 +451,9 @@ def handle(conn):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
+    parser.add_argument("--replicaof", nargs=2)
     args = parser.parse_args()
+    server["role"] = "slave" if args.replicaof else "master"
     with socket.create_server(("localhost", args.port), reuse_port=True) as server:
         while True:
             connection, _ = server.accept() 
