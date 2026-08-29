@@ -668,21 +668,25 @@ def read_string(data, i):
 
 
 def load_rdb(data):
-    i = data.index(b"\xfe") + 5
+    i = data.index(b"\xfe") + 4
+
     while data[i] != 0xff:
         expiry = None
 
         if data[i] == 0xfc:
-            expiry = int.from_bytes(data[i + 1:i + 9], "little")
+            expiry = int.from_bytes(data[i + 1:i + 9], "little") / 1000
             i += 9
         elif data[i] == 0xfd:
-            expiry = int.from_bytes(data[i + 1:i + 5], "little") * 1000
+            expiry = int.from_bytes(data[i + 1:i + 5], "little")
             i += 5
+
         i += 1  # value type
         key, i = read_string(data, i)
         value, i = read_string(data, i)
+
         global_store[key] = (value, expiry)
 
+        
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
     server["dbfilename"] = args.dbfilename if args.dbfilename else None
