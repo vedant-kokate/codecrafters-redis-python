@@ -379,7 +379,7 @@ def handle_unwatch(conn, transaction):
     return b"+OK\r\n"
 
 def handle_info(conn, parts):
-    responses = ["Replication","role:master"]
+    responses = ["master"]
     return  b"".join(bulk(response) for response in responses)
     
 def parse_command(conn, data, transaction):
