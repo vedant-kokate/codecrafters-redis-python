@@ -430,7 +430,7 @@ def parse_command(conn, data, transaction):
 
     # Replication offset counts commands sent by the master,
     # excluding handshake/control commands.
-    if command not in ("PING", "REPLCONF", "PSYNC"):
+    if command not in ("REPLCONF", "PSYNC"):
         server["offset"] += len(data)
 
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
