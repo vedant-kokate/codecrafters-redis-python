@@ -439,7 +439,7 @@ def propogate_to_replicas(data):
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
                 
-def handle_replconf(conn, parts):
+def handle_replconf(parts):
     print(f"Received REPLCONF: {parts}")
 
     if parts[4].upper() == "GETACK":
@@ -456,7 +456,7 @@ def parse_command(conn, data, transaction):
         return b"+QUEUED\r\n", False
 
     if command == "REPLCONF":
-        response = handle_replconf(conn, parts)
+        response = handle_replconf(parts)
         override = parts[4].upper() == "GETACK"
 
     else:
@@ -468,7 +468,7 @@ def parse_command(conn, data, transaction):
 
         response, override = handler(conn, parts, transaction)
 
-    if command != "PSYNC" and command != "REPLCONF":
+    if command != "PSYNC":
         server["offset"] += len(data)
 
     return response, override
