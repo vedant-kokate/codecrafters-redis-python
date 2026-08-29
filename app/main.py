@@ -429,6 +429,14 @@ def handle_psync(conn, parts):
             + rdb
             )
 
+def cehck_replica_syn(target_offset):
+    with replicas_lock:
+        for replica in replicas:
+            if replica["offset"] < target_offset:
+                return False
+    return True
+
+
 def handle_wait(parts):
     num_replicas = int(parts[4])
     timeout = int(parts[6]) / 1000.0  # Convert milliseconds to seconds
@@ -436,7 +444,7 @@ def handle_wait(parts):
 
     while True:
         with replicas_lock:
-            if len(replicas) >= num_replicas:
+            if len(replicas) >= num_replicas and cehck_replica_syn(target_offset=server["offset"]):
                 return integer(len(replicas))
 
         elapsed_time = time.time() - start_time
