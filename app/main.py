@@ -36,6 +36,9 @@ global_store = {}
 conditions = {}
 conditions_lock = threading.Lock()
 
+replica_acks = {}
+replica_ack_cond = threading.Condition()
+
 key_versions = {}
 key_versions_lock = threading.Lock()
 server = {
@@ -425,54 +428,70 @@ def handle_psync(conn, parts):
     rdb = base64.b64decode(EMPTY_RBD_FILE_64)
     with replicas_lock:
         replicas.append(conn)
+    with replica_ack_cond:
+        replica_acks[conn] = 0
     return (b"+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"
             + f"${len(rdb)}\r\n".encode()
             + rdb
             )
 
-def check_replica_sync(target_offset, num_replicas, timeout):
-    for replica in replicas:
-        replica.sendall(
-            array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*")
-        )
+def check_replica_sync(target_offset, num_replicas, timeout_seconds):
+    with replicas_lock:
+        current_replicas = list(replicas)
 
-    synced = 0
-    end = time.time() + timeout / 1000
+    if target_offset == 0:
+        return len(current_replicas)
 
-    while synced < num_replicas and time.time() < end:
-        readable, _, _ = select.select(
-            replicas, [], [], max(0, end - time.time())
-        )
+    for replica in current_replicas:
+        try:
+            replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
+        except Exception as e:
+            print(f"Error sending GETACK to replica: {e}")
 
-        for replica in readable:
-            response = replica.recv(1024)
-            if b"ACK" in response:
-                synced += int(response.split(b"\r\n")[-2]) >= target_offset
-
-    return synced
+    end = time.time() + timeout_seconds
+    with replica_ack_cond:
+        while True:
+            synced = sum(
+                1 for r in current_replicas
+                if replica_acks.get(r, 0) >= target_offset
+            )
+            if synced >= num_replicas:
+                return synced
+            remaining = end - time.time()
+            if remaining <= 0:
+                return synced
+            replica_ack_cond.wait(timeout=remaining)
 
 
 def handle_wait(parts):
     num_replicas = int(parts[4])
-    timeout = int(parts[6]) / 1000
-
-    synced = check_replica_sync(server["offset"], num_replicas, timeout)
+    timeout_ms = int(parts[6])
+    synced = check_replica_sync(server["offset"], num_replicas, timeout_ms / 1000)
     return integer(synced)
 
 def propogate_to_replicas(data):
     command = data[2::2]
+    payload = array(len(command)) + b"".join(bulk(cmd) for cmd in command)
     with replicas_lock:
         for replica in replicas:
             try:
-                replica.sendall(array(len(command)) + b"".join(bulk(cmd) for cmd in command))
+                replica.sendall(payload)
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
+    # server["offset"] += len(payload)   # master's propagated-byte counter
                 
-def handle_replconf(parts):
+def handle_replconf(conn, parts):
     print(f"Received REPLCONF: {parts}")
 
     if parts[4].upper() == "GETACK":
         return array(3) + bulk("REPLCONF") + bulk("ACK") + bulk(str(server["offset"]))
+
+    if parts[4].upper() == "ACK":
+        offset = int(parts[6])
+        with replica_ack_cond:
+            replica_acks[conn] = offset
+            replica_ack_cond.notify_all()
+        return None  # real Redis never replies to REPLCONF ACK
 
     return b"+OK\r\n"
 
