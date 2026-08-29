@@ -382,7 +382,7 @@ def handle_info(conn, parts):
     responses = []
     responses.append(bulk("Replication"))
     responses.append(bulk("role:master"))
-    return array(len(responses), b"\n".join(responses))
+    return array(len(responses)) + b"\n".join(responses)
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
