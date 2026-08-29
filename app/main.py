@@ -697,7 +697,9 @@ def set_server(args):
     server["appendfsync"] = args.appendfsync or "everysec"
 
     if server["appendonly"] == "yes":
-        Path(server["dir"], server["appenddirname"]).mkdir(parents=True, exist_ok=True)
+        path = Path(server["dir"]) / server["appenddirname"]
+        path.mkdir(parents=True, exist_ok=True)
+        (path / f"{server['appendfilename']}.1.incr.aof").touch()
 
     if server["dir"] and server["dbfilename"]:
         path = Path(server["dir"]) / server["dbfilename"]
