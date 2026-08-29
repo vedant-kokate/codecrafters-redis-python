@@ -3,6 +3,7 @@ import socket  # noqa: F401
 import threading
 import time
 import base64
+import selectors
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -429,29 +430,29 @@ def handle_psync(conn, parts):
             + rdb
             )
 
-def check_replica_sync(target_offset, num_replicas):
+def check_replica_sync(target_offset, num_replicas, timeout):
+    sel = selectors.DefaultSelector()
+
+    for r in replicas:
+        r.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
+        sel.register(r, selectors.EVENT_READ)
+
     synced = 0
-    print(f"Checking if {num_replicas} replicas have acknowledged offset {target_offset}")
-    # print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
-    for replica in replicas:
-        try:
-            print(f"Sending REPLCONF GETACK to replica: {target_offset}")
-            replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
-        except Exception as e:
-            print(f"Error checking replica sync: {e}")
-            return False
-        
-    for replica in replicas:
-        try:
-            response = replica.recv(1024)
-            parts = response.decode().split("\r\n")
-            ack_offset = int(parts[6])
-            if ack_offset >= target_offset:
+    end = time.time() + timeout
+
+    while synced < num_replicas:
+        events = sel.select(max(0, end - time.time()))
+        if not events:
+            break
+
+        for key, _ in events:
+            response = key.fileobj.recv(1024)
+            if int(response[1:-2]) >= target_offset:
                 synced += 1
-        except Exception as e:
-            print(f"Error checking replica sync: {e}")
-            return False
-    return synced >= num_replicas
+            sel.unregister(key.fileobj)
+
+    sel.close()
+    return synced
 
 
 def handle_wait(parts):
