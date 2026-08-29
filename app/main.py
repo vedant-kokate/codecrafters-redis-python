@@ -30,7 +30,8 @@ COMMAND_HANDLERS = {
     "INFO": lambda conn, parts, transaction: (handle_info(conn, parts), False),
     "PSYNC": lambda conn, parts, transaction: (handle_psync(conn, parts), False),
     "WAIT": lambda conn, parts, transaction: (handle_wait(parts), False),
-    "CONFIG": lambda conn, parts, transaction:(handle_config(parts), False)
+    "CONFIG": lambda conn, parts, transaction:(handle_config(parts), False),
+    "KEYS":  lambda conn, parts, transaction:(handle_keys(parts), False),
 }
 global_store = {}
 
@@ -664,6 +665,9 @@ def replication_handling(args):
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
     server["dbfilename"] = args.dbfilename if args.dbfilename else None
+def handle_keys(parts):
+    search = parts[4]
+    return array(0)
 
 def main():
     parser = argparse.ArgumentParser()
