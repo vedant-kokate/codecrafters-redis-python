@@ -47,10 +47,6 @@ server = {
     "role": "master",
     "master_conn": None,
     "offset": 0,
-    "appendonly": "no",
-    "appenddirname":"appendonlydir",
-    "appendfilename":"appendonly.aof",
-    "appendfsync": "everysec"
 }
 
 replicas_lock = threading.Lock()
@@ -694,6 +690,12 @@ def load_rdb(data):
 def set_server(args):
     server["dir"] = args.dir or "/app"
     server["dbfilename"] = args.dbfilename or "dump.rdb"
+
+    server["appendonly"] = args.appendonly or "no"
+    server["appenddirname"] = args.appenddirname or "appendonlydir"
+    server["appendfilename"] = args.appendfilename or "appendonly.aof"
+    server["appendfsync"] = args.appendfsync or "everysec"
+
     if server["dir"] and server["dbfilename"]:
         path = Path(server["dir"]) / server["dbfilename"]
         if path.exists():
@@ -705,13 +707,23 @@ def set_server(args):
 def handle_keys(parts):
     search = parts[4]
     return array(len(global_store)) + b"".join(bulk(key) for key in global_store.keys() if search == "*" or search in key)
-def main():
+
+def handle_startup_params():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
     parser.add_argument("--replicaof")
     parser.add_argument("--dir")
     parser.add_argument("--dbfilename")
-    args = parser.parse_args()
+
+    parser.add_argument("--appendonly")
+    parser.add_argument("--appenddirname")
+    parser.add_argument("--appendfilename")
+    parser.add_argument("--appendfsync")
+    
+
+    return parser.parse_args()
+def main():
+    args = handle_startup_params()
 
     threading.Thread(target=replication_handling, args=(args,), daemon=True).start()
 
