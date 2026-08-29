@@ -451,7 +451,7 @@ def replication_handling(args_replicaof):
     if not args_replicaof:
         return
     server["role"] = "slave" if args_replicaof else "master"
-    master_host, master_port = args_replicaof
+    master_host, master_port = args_replicaof.split(" ")
     master = socket.create_connection(
             (master_host, int(master_port))
         )
