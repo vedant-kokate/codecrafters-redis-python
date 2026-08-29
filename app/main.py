@@ -431,6 +431,7 @@ def handle_psync(conn, parts):
 
 def check_replica_syn(target_offset, num_replicas):
     synced = 0
+    print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
     with replicas_lock:
         for replica in replicas:
             try:
