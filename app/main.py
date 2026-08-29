@@ -668,7 +668,7 @@ def read_string(data, i):
 
 
 def load_rdb(data):
-    i = data.index(b"\xfe") + 4
+    i = data.index(b"\xfe") + 5
 
     while data[i] != 0xff:
         expiry = None
@@ -686,7 +686,6 @@ def load_rdb(data):
 
         global_store[key] = (value, expiry)
 
-        
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
     server["dbfilename"] = args.dbfilename if args.dbfilename else None
