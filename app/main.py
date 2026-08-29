@@ -414,7 +414,7 @@ def propogate_to_replicas(data):
                 replica.sendall(array(len(command)) + b"".join(bulk(cmd) for cmd in command))
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
-def handle_replicaof(conn, parts):
+def handle_replconf(conn, parts):
     return array(3) + bulk("REPLICAOF") + bulk("ACK") + bulk("0")
     
 def parse_command(conn, data, transaction):
@@ -472,8 +472,8 @@ def parse_command(conn, data, transaction):
             return b"+OK\r\n"
         case "PSYNC":
             return handle_psync(conn, parts)
-        case "REPLICAOF":
-            handle_replicaof(conn, parts)
+        case "REPLCONF":
+            return handle_replconf(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
