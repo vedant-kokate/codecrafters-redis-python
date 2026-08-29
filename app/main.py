@@ -9,7 +9,9 @@ conditions_lock = threading.Lock()
 
 key_versions = {}
 key_versions_lock = threading.Lock()
-server = {}
+server = {
+    "role": "master"
+}
 def bulk(s):
     return f"${len(s)}\r\n{s}\r\n".encode()
 
