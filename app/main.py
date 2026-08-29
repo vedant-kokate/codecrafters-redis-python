@@ -454,9 +454,9 @@ def main():
     parser.add_argument("--replicaof")
     args = parser.parse_args()
     server["role"] = "slave" if args.replicaof else "master"
-    with socket.create_server(("localhost", args.port), reuse_port=True) as server:
+    with socket.create_server(("localhost", args.port), reuse_port=True) as server_socket:
         while True:
-            connection, _ = server.accept() 
+            connection, _ = server_socket.accept() 
             threading.Thread(target=handle, args=(connection,)).start()
             
 
