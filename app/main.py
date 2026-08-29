@@ -478,7 +478,8 @@ def propogate_to_replicas(data):
                 replica.sendall(payload)
             except Exception as e:
                 print(f"Error sending data to replica: {e}")
-    # server["offset"] += len(payload)   # master's propagated-byte counter
+    if server["role"] == "master":
+        server["offset"] += len(payload)
                 
 def handle_replconf(conn, parts):
     print(f"Received REPLCONF: {parts}")
@@ -497,7 +498,7 @@ def handle_replconf(conn, parts):
 
 
     
-def parse_command(conn, data, transaction):
+def parse_command(conn, data, transaction, is_master=False):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
 
@@ -508,17 +509,15 @@ def parse_command(conn, data, transaction):
     if command == "REPLCONF":
         response = handle_replconf(conn, parts)
         override = parts[4].upper() == "GETACK"
-
     else:
         handler = COMMAND_HANDLERS.get(command)
-
         if not handler:
             print(f"Unknown command: {command}")
             return None, False
-
         response, override = handler(conn, parts, transaction)
 
-    if command != "PSYNC":
+    # Unchanged from before — this is your YD3 logic, untouched.
+    if is_master and command not in ("REPLCONF", "PSYNC"):
         server["offset"] += len(data)
 
     return response, override
@@ -567,12 +566,11 @@ def handle_data(conn, data, transaction, is_master):
         commands = split_commands(data)
         print(f"Split into {len(commands)} command(s): {[cmd.decode() for cmd in commands]}")
         for command in commands:
-            response, should_respond = parse_command(conn, command, transaction)
+            response, should_respond = parse_command(conn, command, transaction, is_master=True)
             if should_respond and response:
                 conn.sendall(response)
     else:
-        response, _ = parse_command(conn, data, transaction)
-
+        response, _ = parse_command(conn, data, transaction, is_master=False)
         if response:
             conn.sendall(response)
 
