@@ -435,8 +435,14 @@ def check_replica_sync(target_offset, num_replicas):
     # print(f"Replicas: {replicas}, Target Offset: {target_offset}, Required Replicas: {num_replicas}")
     for replica in replicas:
         try:
-            print(f"Checking replica sync for target offset {target_offset}")
+            print(f"Sending REPLCONF GETACK to replica: {target_offset}")
             replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
+        except Exception as e:
+            print(f"Error checking replica sync: {e}")
+            return False
+        
+    for replica in replicas:
+        try:
             response = replica.recv(1024)
             parts = response.decode().split("\r\n")
             ack_offset = int(parts[6])
