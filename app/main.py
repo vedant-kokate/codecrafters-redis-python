@@ -516,7 +516,6 @@ def parse_command(conn, data, transaction):
 def split_commands(data):
     commands = []
     pos = 0
-
     while pos < len(data):
         start = data.find(b"*", pos)
 
@@ -550,7 +549,7 @@ def split_commands(data):
 
     return commands
 
-      
+
 def handle_data(conn, data, transaction, is_master):
     print(f"RECEIVED FROM {'MASTER' if is_master else 'CLIENT'}: {data!r}")
 
