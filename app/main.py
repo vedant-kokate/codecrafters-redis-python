@@ -519,24 +519,83 @@ def handle(conn):
         "queue": [],
         "watched_keys": {}
     }
+
     is_master = conn == server["master_conn"]
+    buffer = b""
+
     while data := conn.recv(1024):
         if is_master:
-            print(f"RECEIVED FROM {'MASTER'}: {data!r}")
-            commands = data.split(b"*3\r\n")
-            print(f"Split commands: {commands}")
-            for command in commands:
-                if command:
-                    command = b"*3\r\n" + command
-                    response, override = parse_command(conn, command, transaction)
-                    print("OVERRIDE:", override, "RESPONSE:", response)
-                    if override:
-                        conn.sendall(response if response else b"")
+            print(f"RECEIVED FROM MASTER: {data!r}")
+
+            buffer += data
+
+            while buffer:
+                # We only handle RESP arrays here.
+                if not buffer.startswith(b"*"):
+                    # Skip RDB data / anything before the next RESP command.
+                    pos = buffer.find(b"*")
+                    if pos == -1:
+                        buffer = b""
+                        break
+                    buffer = buffer[pos:]
+
+                # Find the end of one RESP array.
+                end = buffer.find(b"\r\n", 1)
+                if end == -1:
+                    break
+
+                try:
+                    num_parts = int(buffer[1:end])
+                except ValueError:
+                    buffer = buffer[1:]
+                    continue
+
+                pos = end + 2
+                complete = True
+
+                for _ in range(num_parts):
+                    if not buffer.startswith(b"$", pos):
+                        complete = False
+                        break
+
+                    line_end = buffer.find(b"\r\n", pos)
+                    if line_end == -1:
+                        complete = False
+                        break
+
+                    length = int(buffer[pos + 1:line_end])
+                    pos = line_end + 2 + length + 2
+
+                    if len(buffer) < pos:
+                        complete = False
+                        break
+
+                if not complete:
+                    break
+
+                command = buffer[:pos]
+                buffer = buffer[pos:]
+
+                response, override = parse_command(
+                    conn, command, transaction
+                )
+
+                print("OVERRIDE:", override, "RESPONSE:", response)
+
+                if override:
+                    conn.sendall(response if response else b"")
+
+                # Count only commands received from the master.
+                server["offset"] += len(command)
+
         else:
-            print(f"RECEIVED FROM {'CLIENT'}: {data!r}")
-            response, _ = parse_command(conn, data, transaction)
+            print(f"RECEIVED FROM CLIENT: {data!r}")
+
+            response, _ = parse_command(
+                conn, data, transaction
+            )
+
             conn.sendall(response if response else b"")
-        server["offset"] += len(data)
 
 def replication_handling(args):
     args_replicaof = args.replicaof
