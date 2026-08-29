@@ -16,6 +16,10 @@ key_versions_lock = threading.Lock()
 server = {
     "role": "master"
 }
+
+replicas_lock = threading.Lock()
+replicas = []
+
 def bulk(s):
     return f"${len(s)}\r\n{s}\r\n".encode()
 
@@ -57,11 +61,13 @@ def handle_set_with_expiry(parts):
             expiry_time = time.time() + int(parts[10]) / 1000  # Convert milliseconds to seconds
             global_store[key] = (value, expiry_time)
             increment_key_version(key)
+            propogate_to_replicas(parts)
         except ValueError:
             print(f"Invalid expiry time: {parts[10]}")
     else:
         global_store[key] = (value, None)
         increment_key_version(key)
+        propogate_to_replicas(parts)
     return b"+OK\r\n"
 
 def handle_rpush(parts):
@@ -390,10 +396,21 @@ def handle_info(conn, parts):
 
 def handle_psync(conn, parts):
     rdb = base64.b64decode(EMPTY_RBD_FILE_64)
+    with replicas_lock:
+        replicas.append(conn)
     return (b"+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"
             + f"${len(rdb)}\r\n".encode()
             + rdb
             )
+
+def propogate_to_replicas(data):
+    with replicas_lock:
+        for replica in replicas:
+            try:
+                replica.sendall(data)
+            except Exception as e:
+                print(f"Error sending data to replica: {e}")
+                replicas.remove(replica)
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
