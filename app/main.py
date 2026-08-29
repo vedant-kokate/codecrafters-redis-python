@@ -435,6 +435,8 @@ def parse_command(conn, data, transaction):
             return handle_unwatch(conn, transaction)
         case "INFO":
             return handle_info(conn, parts)
+        case "REPLCONF":
+            return b"+OK\r\n"
         case _:
             print(f"Unknown command: {command}")
 
@@ -468,6 +470,10 @@ def replication_handling(args):
     print(response)
 
     master.sendall(array(3) + bulk("REPLCONF") + bulk("capa") + bulk("psync2"))
+    response = master.recv(1024)
+    print(response)
+
+    master.sendall(array(3) + bulk("PSYNC") + bulk("?") + bulk("-1"))
     response = master.recv(1024)
     print(response)
             
