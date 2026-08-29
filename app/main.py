@@ -513,6 +513,7 @@ def replication_handling(args):
     print(response)
 
     server["master_conn"] = master
+    threading.Thread(target=handle, args=(master,), daemon=True).start()
             
 
 def main():
