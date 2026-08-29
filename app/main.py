@@ -481,6 +481,7 @@ def handle(conn):
     }
     is_master = conn == server["master_conn"]
     while data := conn.recv(1024):
+        print(f"RECEIVED FROM {'MASTER' if is_master else 'CLIENT'}: {data!r}")
         response = parse_command(conn, data, transaction)
         print(f"Response: {response}")
         if not is_master:
