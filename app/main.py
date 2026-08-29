@@ -35,7 +35,7 @@ def increment_key_version(key):
     with key_versions_lock:
         key_versions[key] = key_versions.get(key, 0) + 1
 
-def handle_get_with_expiry(conn, parts):
+def handle_get_with_expiry(parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
     if value is None:
@@ -45,7 +45,7 @@ def handle_get_with_expiry(conn, parts):
         return b"$-1\r\n"
     return bulk(value)
 
-def handle_set_with_expiry(conn, parts):
+def handle_set_with_expiry(parts):
     key = parts[4]
     value = parts[6]
     if len(parts) >= 10 and parts[8].upper() == "PX":
@@ -60,7 +60,7 @@ def handle_set_with_expiry(conn, parts):
         increment_key_version(key)
     return b"+OK\r\n"
 
-def handle_rpush(conn, parts):
+def handle_rpush(parts):
     key = parts[4]
     value = parts[6:len(parts):2]  # Get all values to be pushed
     cond = get_condition(key)
@@ -74,7 +74,7 @@ def handle_rpush(conn, parts):
         cond.notify()
     return integer(len(global_store[key]))
 
-def handle_lrange(conn, parts):
+def handle_lrange(parts):
     key, left, right = parts[4], int(parts[6]), int(parts[8])
     if key not in global_store or not isinstance(global_store[key], list):
         return array(0)
@@ -84,7 +84,7 @@ def handle_lrange(conn, parts):
     lst = global_store[key][left:right + 1]
     return array(len(lst)) + b"".join(bulk(item) for item in lst)
 
-def handle_lpush(conn, parts):
+def handle_lpush(parts):
     key = parts[4]
     value = parts[6:len(parts):2]  # Get all values to be pushed
     if key not in global_store:
@@ -96,13 +96,13 @@ def handle_lpush(conn, parts):
     increment_key_version(key)
     return integer(len(global_store[key]))
 
-def handle_llen(conn, parts):
+def handle_llen(parts):
     key = parts[4]
     if key not in global_store or not isinstance(global_store[key], list):
         return integer(0)
     return integer(len(global_store[key]))
 
-def handle_lpop(conn, parts):
+def handle_lpop(parts):
     key = parts[4]
     count = int(parts[6]) if len(parts) > 6 else 1
     if key not in global_store or not isinstance(global_store[key], list) or len(global_store[key]) == 0:
@@ -122,7 +122,7 @@ def handle_lpop(conn, parts):
     increment_key_version(key)
     return  b"".join(response)
 
-def handle_blpop(conn, parts):
+def handle_blpop(parts):
     key = parts[4]
     timeout =  None if float(parts[6]) == 0 else float(parts[6])
     cond = get_condition(key)
@@ -144,7 +144,7 @@ def handle_blpop(conn, parts):
             + bulk(key)
             + bulk(item)
         )
-def handle_type(conn, parts):
+def handle_type(parts):
     key = parts[4]
 
     if key not in global_store:
@@ -190,7 +190,7 @@ def generate_xadd_id(key, id):
                 return f"{pre}-0"
             return f"{pre}-{last_id_seq + 1}"
         return f"{pre}-0" if pre != '0' else "0-1"
-def handle_xadd(conn, parts):
+def handle_xadd(parts):
     key = parts[4]
     id = parts[6]
     field_value_pairs = parts[8:len(parts):2]  # Get all field-value pairs
@@ -215,7 +215,7 @@ def handle_xadd(conn, parts):
         cond.notify()
     return f"${len(id)}\r\n{id}\r\n".encode()
 
-def handle_xrange(conn, parts):
+def handle_xrange(parts):
     key = parts[4]
     start_id = parts[6]
     end_id = parts[8]
@@ -244,7 +244,7 @@ def handle_xrange(conn, parts):
             response.append(bulk(item))
 
     return b"".join(response)
-def handle_xread(conn, parts):
+def handle_xread(parts):
     streams_index = parts.index("streams")
     args = parts[streams_index + 2::2]  # Skip "$len" elements
     n = len(args) // 2
@@ -307,7 +307,7 @@ def handle_xread(conn, parts):
             for item in flat:
                 response.append(bulk(item))
     return b"".join(response)
-def handle_incr(conn, parts):
+def handle_incr(parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
     if value is None:
@@ -383,6 +383,9 @@ def handle_unwatch(conn, transaction):
 def handle_info(conn, parts):
     response = ["# Replication", "role:"+server["role"],"master_replid:"+"8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb", "master_repl_offset:"+"0"]
     return bulk("\r\n".join(response))
+
+def handle_psync(conn, parts):
+    return "+FULLRESYNC ? 0\r\n"
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
@@ -398,31 +401,31 @@ def parse_command(conn, data, transaction):
             message = parts[4]
             return bulk(message)
         case "SET":
-            return handle_set_with_expiry(conn, parts)
+            return handle_set_with_expiry(parts)
         case "GET":
-            return handle_get_with_expiry(conn, parts)
+            return handle_get_with_expiry(parts)
         case "RPUSH":
-            return handle_rpush(conn, parts)
+            return handle_rpush(parts)
         case "LRANGE":
-            return handle_lrange(conn, parts)
+            return handle_lrange(parts)
         case "LPUSH":
-            return handle_lpush(conn, parts)
+            return handle_lpush(parts)
         case "LLEN":
-            return handle_llen(conn, parts)
+            return handle_llen(parts)
         case "LPOP":
-            return handle_lpop(conn, parts)
+            return handle_lpop(parts)
         case "BLPOP":
-            return handle_blpop(conn, parts)  
+            return handle_blpop(parts)  
         case "TYPE":
-            return handle_type(conn, parts)
+            return handle_type(parts)
         case "XADD":
-            return handle_xadd(conn, parts)
+            return handle_xadd(parts)
         case "XRANGE":
-            return handle_xrange(conn, parts)
+            return handle_xrange(parts)
         case "XREAD":
-            return handle_xread(conn, parts)
+            return handle_xread(parts)
         case "INCR":
-            return handle_incr(conn, parts)
+            return handle_incr(parts)
         case "MULTI":
             return handle_multi(conn, transaction)
         case "EXEC":
@@ -437,6 +440,8 @@ def parse_command(conn, data, transaction):
             return handle_info(conn, parts)
         case "REPLCONF":
             return b"+OK\r\n"
+        case "PSYNC":
+            return handle_psync(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
