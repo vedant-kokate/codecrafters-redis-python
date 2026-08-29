@@ -678,8 +678,13 @@ def load_rdb(data):
 def set_server(args):
     server["dir"] = args.dir if args.dir else None
     server["dbfilename"] = args.dbfilename if args.dbfilename else None
-    with open(Path(args.dir) / args.dbfilename, "rb") as f:
-        load_rdb(f.read())
+    if server["dir"] and server["dbfilename"]:
+        path = Path(server["dir"]) / server["dbfilename"]
+        if path.exists():
+            with open(path, "rb") as f:
+                load_rdb(f.read())
+        else:
+            print(f"No RDB file found at {path}, starting with empty store")
 
 def handle_keys(parts):
     search = parts[4]
