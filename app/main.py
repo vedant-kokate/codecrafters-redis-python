@@ -556,7 +556,7 @@ def handle_data(conn, data, transaction, is_master):
 
     if is_master:
         commands = split_commands(data)
-
+        print(f"Split into {len(commands)} command(s): {[cmd.decode() for cmd in commands]}")
         for command in commands:
             response, should_respond = parse_command(
                 conn, command, transaction
