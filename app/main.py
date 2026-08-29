@@ -449,7 +449,7 @@ def check_replica_sync(target_offset, num_replicas, timeout):
             if b"ACK" in response:
                 synced += int(response.split(b"\r\n")[-2]) >= target_offset
 
-    return synced >= num_replicas
+    return synced
 
 
 def handle_wait(parts):
