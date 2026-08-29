@@ -15,7 +15,8 @@ key_versions = {}
 key_versions_lock = threading.Lock()
 server = {
     "role": "master",
-    "master_conn": None
+    "master_conn": None,
+    "offset": 0,
 }
 
 replicas_lock = threading.Lock()
@@ -419,7 +420,7 @@ def handle_replconf(conn, parts):
     print(f"Received REPLCONF: {parts}")
 
     if parts[4].upper() == "GETACK":
-        return array(3) + bulk("REPLCONF") + bulk("ACK") + bulk("0")
+        return array(3) + bulk("REPLCONF") + bulk("ACK") + bulk(str(server["offset"]))
 
     return b"+OK\r\n"
     
@@ -520,6 +521,7 @@ def handle(conn):
     }
     is_master = conn == server["master_conn"]
     while data := conn.recv(1024):
+        server["offset"] += len(data)
         if is_master:
             print(f"RECEIVED FROM {'MASTER'}: {data!r}")
             commands = data.split(b"*3\r\n")
