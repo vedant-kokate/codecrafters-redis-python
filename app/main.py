@@ -447,7 +447,8 @@ def check_replica_sync(target_offset, num_replicas, timeout):
 
         for key, _ in events:
             response = key.fileobj.recv(1024)
-            if int(response[1:-2]) >= target_offset:
+            ack_offset = int(response.split(b"\r\n")[-2])
+            if ack_offset >= target_offset:
                 synced += 1
             sel.unregister(key.fileobj)
 
