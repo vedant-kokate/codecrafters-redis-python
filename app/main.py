@@ -438,7 +438,8 @@ def check_replica_sync(target_offset, num_replicas):
             print(f"Checking replica sync for target offset {target_offset}")
             replica.sendall(array(3) + bulk("REPLCONF") + bulk("GETACK") + bulk("*"))
             response = replica.recv(1024)
-            ack_offset = int(response[1:-2])  # Remove ':' and '\r\n'
+            parts = response.decode().split("\r\n")
+            ack_offset = int(parts[6])
             if ack_offset >= target_offset:
                 synced += 1
         except Exception as e:
