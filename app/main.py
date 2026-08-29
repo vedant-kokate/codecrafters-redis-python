@@ -377,6 +377,9 @@ def handle_watch(conn, parts, transaction):
 def handle_unwatch(conn, transaction):
     transaction["watched_keys"].clear()
     return b"+OK\r\n"
+
+def handle_info(conn, parts):
+    return b"+OK\r\n"
     
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
@@ -427,6 +430,8 @@ def parse_command(conn, data, transaction):
             return handle_watch(conn, parts, transaction)
         case "UNWATCH":
             return handle_unwatch(conn, transaction)
+        case "INFO":
+            return handle_info(conn, parts)
         case _:
             print(f"Unknown command: {command}")
 
