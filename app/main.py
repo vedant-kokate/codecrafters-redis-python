@@ -30,6 +30,7 @@ COMMAND_HANDLERS = {
     "INFO": lambda conn, parts, transaction: (handle_info(conn, parts), False),
     "PSYNC": lambda conn, parts, transaction: (handle_psync(conn, parts), False),
     "WAIT": lambda conn, parts, transaction: (handle_wait(parts), False),
+    "CONFIG": lambda conn, parts, transaction:(handle_config(parts), False)
 }
 global_store = {}
 
@@ -495,6 +496,10 @@ def handle_replconf(conn, parts):
         return None  # real Redis never replies to REPLCONF ACK
 
     return b"+OK\r\n"
+
+def handle_config(parts):
+    command = parts[2::2]
+    return array(2) + bulk(command[1]) 
 
 
     
