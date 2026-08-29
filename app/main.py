@@ -458,7 +458,7 @@ def replication_handling(args):
     master = socket.create_connection(
             (master_host, int(master_port))
         )
-    master.sendall(bulk("PING"))
+    master.sendall(array(1)+bulk("PING"))
             
 
 def main():
