@@ -393,7 +393,6 @@ def handle_psync(conn, parts):
     return (b"+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"
             + f"${len(rdb)}\r\n".encode()
             + rdb
-            + b"\r\n"
             )
     
 def parse_command(conn, data, transaction):
