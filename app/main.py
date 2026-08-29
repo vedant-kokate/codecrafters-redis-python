@@ -528,6 +528,7 @@ def handle(conn):
                 if command:
                     command = b"*3\r\n" + command
                     response, override = parse_command(conn, command, transaction)
+                    print("OVERRIDE:", override, "RESPONSE:", response)
                     if override:
                         conn.sendall(response if response else b"")
         else:
