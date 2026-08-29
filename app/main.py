@@ -683,7 +683,7 @@ def set_server(args):
 
 def handle_keys(parts):
     search = parts[4]
-    return array(0)
+    return array(len(global_store)) + b"".join(bulk(key) for key in global_store.keys() if search == "*" or search in key)
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
