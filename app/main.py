@@ -354,7 +354,7 @@ def handle_exec(conn, transaction):
     responses = []
 
     for parts in transaction["queue"]:
-        response = parse_command(
+        response, _ = parse_command(
             conn,
             ("\r\n".join(parts) + "\r\n").encode(),
             transaction,
@@ -426,61 +426,92 @@ def handle_replconf(conn, parts):
 def parse_command(conn, data, transaction):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
+
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
-        return b"+QUEUED\r\n"
+        return b"+QUEUED\r\n", False
 
     match command:
         case "PING":
-            return b"+PONG\r\n"
+            return b"+PONG\r\n", False
+
         case "ECHO":
             message = parts[4]
-            return bulk(message)
+            return bulk(message), False
+
         case "SET":
-            return handle_set_with_expiry(parts)
+            return handle_set_with_expiry(parts), False
+
         case "GET":
-            return handle_get_with_expiry(parts)
+            return handle_get_with_expiry(parts), False
+
         case "RPUSH":
-            return handle_rpush(parts)
+            return handle_rpush(parts), False
+
         case "LRANGE":
-            return handle_lrange(parts)
+            return handle_lrange(parts), False
+
         case "LPUSH":
-            return handle_lpush(parts)
+            return handle_lpush(parts), False
+
         case "LLEN":
-            return handle_llen(parts)
+            return handle_llen(parts), False
+
         case "LPOP":
-            return handle_lpop(parts)
+            return handle_lpop(parts), False
+
         case "BLPOP":
-            return handle_blpop(parts)  
+            return handle_blpop(parts), False
+
         case "TYPE":
-            return handle_type(parts)
+            return handle_type(parts), False
+
         case "XADD":
-            return handle_xadd(parts)
+            return handle_xadd(parts), False
+
         case "XRANGE":
-            return handle_xrange(parts)
+            return handle_xrange(parts), False
+
         case "XREAD":
-            return handle_xread(parts)
+            return handle_xread(parts), False
+
         case "INCR":
-            return handle_incr(parts)
+            return handle_incr(parts), False
+
         case "MULTI":
-            return handle_multi(conn, transaction)
+            return handle_multi(conn, transaction), False
+
         case "EXEC":
-            return handle_exec(conn, transaction)
+            return handle_exec(conn, transaction), False
+
         case "DISCARD":
-            return handle_discard(conn, transaction)
+            return handle_discard(conn, transaction), False
+
         case "WATCH":
-            return handle_watch(conn, parts, transaction)
+            return handle_watch(conn, parts, transaction), False
+
         case "UNWATCH":
-            return handle_unwatch(conn, transaction)
+            return handle_unwatch(conn, transaction), False
+
         case "INFO":
-            return handle_info(conn, parts)
+            return handle_info(conn, parts), False
+
         case "PSYNC":
-            return handle_psync(conn, parts)
+            return handle_psync(conn, parts), False
+
         case "REPLCONF":
-            return handle_replconf(conn, parts)
+            response = handle_replconf(conn, parts)
+
+            # Only REPLCONF GETACK requires a response
+            if parts[4].upper() == "GETACK":
+                return response, True
+
+            return response, False
+
         case _:
             print(f"Unknown command: {command}")
-
+            return None, False
+        
 def handle(conn):
     transaction = {
         "in_multi": False,
@@ -495,10 +526,12 @@ def handle(conn):
             for command in commands:
                 if command:
                     command = b"*3\r\n" + command
-                    parse_command(conn, command, transaction)
+                    response, override = parse_command(conn, command, transaction)
+                    if override:
+                        conn.sendall(response if response else b"")
         else:
             print(f"RECEIVED FROM {'CLIENT'}: {data!r}")
-            response = parse_command(conn, data, transaction)
+            response, _ = parse_command(conn, data, transaction)
             conn.sendall(response if response else b"")
 
 def replication_handling(args):
