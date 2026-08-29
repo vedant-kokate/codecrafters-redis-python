@@ -499,7 +499,8 @@ def handle_replconf(conn, parts):
 
 def handle_config(parts):
     command = parts[2::2]
-    return array(2) + bulk(command[1]) 
+    param = command[2]
+    return array(2) + bulk(param) + bulk(server[param]) 
 
 
     
@@ -658,17 +659,24 @@ def replication_handling(args):
                 break
             handle_data(master, data, transaction, is_master=True)
 
-    threading.Thread(target=replica_loop, daemon=True).start()           
+    threading.Thread(target=replica_loop, daemon=True).start()       
+
+def set_server(args):
+    server["dir"] = args.dir if args.dir else None
+    server["dbfilename"] = args.dbfilename if args.dbfilename else None
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=6379)
     parser.add_argument("--replicaof")
+    parser.add_argument("--dir")
+    parser.add_argument("--dbfilename")
     args = parser.parse_args()
 
     threading.Thread(target=replication_handling, args=(args,), daemon=True).start()
 
     with socket.create_server(("localhost", args.port), reuse_port=True) as server_socket:
+        set_server(args)
         while True:
             connection, _ = server_socket.accept()
             threading.Thread(target=handle, args=(connection,)).start()
