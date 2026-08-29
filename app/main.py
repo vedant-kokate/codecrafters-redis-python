@@ -391,7 +391,7 @@ def handle_info(conn, parts):
 def handle_psync(conn, parts):
     rdb = base64.b64decode(EMPTY_RBD_FILE_64)
     return (b"+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"
-            + bulk(rdb.decode("latin-1")).encode("latin-1")
+            + + bulk(rdb.decode("latin-1"))
     )
     
 def parse_command(conn, data, transaction):
