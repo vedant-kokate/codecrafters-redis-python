@@ -876,7 +876,7 @@ def handle_acl(parts):
             response += array(0)
         response += bulk("passwords")
         if user_data["passwords"]:
-            response += array(1) + user_data["passwords"]
+            response += array(1) + bulk(user_data["passwords"])
         else:
             response += array(0)
         return  response
