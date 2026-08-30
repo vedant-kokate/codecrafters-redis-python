@@ -800,6 +800,7 @@ def handle_geosearch(parts):
     for score, member in global_store[key]:
         member_lat, member_long = geoadd_decode(score)
         distance = haversine_distance(lat, long, member_lat, member_long)
+        print(f"Place: {member}, Distance: {distance} meters")
         if distance <= radius:
             results.append(member)
 
