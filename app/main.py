@@ -57,7 +57,7 @@ global_store = {}
 users = {
     "default": {
         "flags": {"on", "nopass"},
-        "password": None,
+        "passwords": None,
     }
 }
 
@@ -874,9 +874,9 @@ def handle_acl(parts):
             response += array(1)+ bulk("nopass")
         else:
             response += array(0)
-        response += bulk("password")
-        if user_data["password"]:
-            response += array(1) + user_data["password"]
+        response += bulk("passwords")
+        if user_data["passwords"]:
+            response += array(1) + user_data["passwords"]
         else:
             response += array(0)
         return  response
@@ -886,9 +886,9 @@ def handle_acl(parts):
         user_name = parts[6]
         user_data = users.get(user_name)
 
-        password = parts[8][1:]  # remove the >
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        user_data["password"] = password_hash
+        passwords = parts[8][1:]  # remove the >
+        passwords_hash = hashlib.sha256(passwords.encode()).hexdigest()
+        user_data["passwords"] = passwords_hash
         user_data["flags"].discard("nopass")
         print(f"Updated user: {user_data}")
         return b"+OK\r\n"
