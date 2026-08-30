@@ -523,7 +523,7 @@ def handle_subscribe(conn, parts):
         response.append(array(3))
         response.append(bulk("subscribe"))
         response.append(bulk(channel))
-        response.append(integer(len(server["subcribtions"][channel])))
+        response.append(integer(len(server["subcribtions"])))
     return b"".join(response)
 
 def handle_unsubscribe(conn, parts):
