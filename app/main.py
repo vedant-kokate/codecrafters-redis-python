@@ -944,7 +944,7 @@ def parse_command(conn, data, transaction, is_master=False):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
     if command != "AUTH" and not pre_auth(conn, parts):
-        return b"NOAUTH Authentication required."
+        return b"-NOAUTH Authentication required.\r\n", False
         
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
