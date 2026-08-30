@@ -37,7 +37,8 @@ COMMAND_HANDLERS = {
     "SUBSCRIBE": lambda conn, parts, transaction: (handle_subscribe(conn, parts), False),
     "UNSUBSCRIBE": lambda conn, parts, transaction: (handle_unsubscribe(conn, parts), False),
     "PUBLISH": lambda conn, parts, transaction: (handle_publish(conn, parts), False),
-    "ZADD": lambda conn, parts, transaction: (handle_zadd(conn, parts), False),  # Placeholder for ZADD
+    "ZADD": lambda conn, parts, transaction: (handle_zadd(parts), False), 
+    "ZRANK": lambda conn, parts, transactions: (handle_zrank(parts), False),
 }
 global_store = {}
 
@@ -570,11 +571,12 @@ def handle_unsubscribe(conn, parts):
         response.append(integer(len(subscriptions.get(channel, []))))
     return b"".join(response)
 
-def handle_zadd(conn, parts):
+def handle_zadd(parts):
     key = parts[4]
+
     if key not in global_store:
-        global_store[key] = {"scores": [], "members": []}
-    elif not isinstance(global_store[key], dict):
+        global_store[key] = []
+    elif not isinstance(global_store[key], list):
         return b"-ERR wrong type\r\n"
 
     zset = global_store[key]
@@ -583,17 +585,31 @@ def handle_zadd(conn, parts):
     for i in range(6, len(parts) - 1, 4):
         score = float(parts[i])
         member = parts[i + 2]
-        if member in zset["members"]:
+
+        if any(m == member for s, m in zset):
             continue
-        pos = bisect.bisect_left(zset["scores"], score)
 
-        zset["scores"].insert(pos, score)
-        zset["members"].insert(pos, member)
-
+        bisect.insort(zset, (score, member))
         added += 1
 
     increment_key_version(key)
+
     return integer(added)
+
+def handle_zrank(parts):
+    key = parts[4]
+    member = parts[6]
+
+    if key not in global_store or not isinstance(global_store[key], list):
+        return b"$-1\r\n"
+
+    zset = global_store[key]
+
+    for rank, (score, m) in enumerate(zset):
+        if m == member:
+            return integer(rank)
+
+    return b"$-1\r\n"
 
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
