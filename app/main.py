@@ -44,6 +44,7 @@ COMMAND_HANDLERS = {
     "ZSCORE": lambda conn, parts, transactions: (handle_zscore(parts), False),
     "ZREM": lambda conn, parts, transactions: (handle_zrem(parts), False),
     "GEOADD": lambda conn, parts, transactions: (handle_geoadd(parts), False),
+    "GEOPOS": lambda conn, parts, transactions: (handle_geopos(parts), False),
 }
 
 global_store = {}
@@ -105,6 +106,44 @@ def spread_int32_to_int64(v: int) -> int:
     v = (v | (v << 1)) & 0x5555555555555555
 
     return v
+
+def geoadd_decode(geo_code: int) -> (float, float):
+    # Align bits of both latitude and longitude to take even-numbered position
+    y = geo_code >> 1
+    x = geo_code
+    
+    # Compact bits back to 32-bit ints
+    grid_latitude_number = compact_int64_to_int32(x)
+    grid_longitude_number = compact_int64_to_int32(y)
+    
+    return convert_grid_numbers_to_coordinates(grid_latitude_number, grid_longitude_number)
+
+
+def compact_int64_to_int32(v: int) -> int:
+    """
+    Compact a 64-bit integer with interleaved bits back to a 32-bit integer.
+    This is the reverse operation of spread_int32_to_int64.
+    """
+    v = v & 0x5555555555555555
+    v = (v | (v >> 1)) & 0x3333333333333333
+    v = (v | (v >> 2)) & 0x0F0F0F0F0F0F0F0F
+    v = (v | (v >> 4)) & 0x00FF00FF00FF00FF
+    v = (v | (v >> 8)) & 0x0000FFFF0000FFFF
+    v = (v | (v >> 16)) & 0x00000000FFFFFFFF
+    return v
+
+
+def convert_grid_numbers_to_coordinates(grid_latitude_number, grid_longitude_number) -> (float, float):
+    # Calculate the grid boundaries
+    grid_latitude_min = MIN_LATITUDE + LATITUDE_RANGE * (grid_latitude_number / (2**26))
+    grid_latitude_max = MIN_LATITUDE + LATITUDE_RANGE * ((grid_latitude_number + 1) / (2**26))
+    grid_longitude_min = MIN_LONGITUDE + LONGITUDE_RANGE * (grid_longitude_number / (2**26))
+    grid_longitude_max = MIN_LONGITUDE + LONGITUDE_RANGE * ((grid_longitude_number + 1) / (2**26))
+    
+    # Calculate the center point of the grid cell
+    latitude = (grid_latitude_min + grid_latitude_max) / 2
+    longitude = (grid_longitude_min + grid_longitude_max) / 2
+    return (latitude, longitude)
 
 def bulk(s):
     return f"${len(s)}\r\n{s}\r\n".encode()
@@ -683,6 +722,25 @@ def handle_geoadd(parts):
     score = geoadd_encode(lat, long)
     global_store[key].append((score, member))
     return integer(1)
+
+def handle_geopos(parts):
+    key = parts[4]
+    members = parts[6::2]
+
+    zset = global_store[key]
+    member_to_score = {member: score for score, member in zset}
+
+    response = [array(len(members))]
+    for member in members:
+        if member in member_to_score:
+            lat, long = geoadd_decode(member_to_score[member])
+            response.append(array(2))
+            response.append(bulk(str(long)))
+            response.append(bulk(str(lat)))
+        else:
+            response.append(b"$-1\r\n")
+
+    return b"".join(response)
 
 def handle_zrank(parts):
     key = parts[4]
