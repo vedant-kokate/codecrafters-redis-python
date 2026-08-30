@@ -546,7 +546,8 @@ def parse_command(conn, data, transaction, is_master=False):
 
     if is_master and command != "PSYNC":
         server["offset"] += len(data)
-    aof(parts)
+    if command in ("SET", "RPUSH", "LPUSH", "LPOP", "BLPOP", "XADD", "INCR"):
+        aof(parts)
     return response, override
 
 def split_commands(data):
