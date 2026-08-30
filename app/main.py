@@ -667,6 +667,10 @@ def handle_zadd(parts):
 
     for i in range(6, len(parts) - 1, 4):
         score = float(parts[i])
+
+        if score.is_integer():
+            score = int(score)
+
         member = parts[i + 2]
 
         for j, (old_score, old_member) in enumerate(zset):
