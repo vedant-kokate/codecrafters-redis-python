@@ -50,8 +50,10 @@ server = {
     "role": "master",
     "master_conn": None,
     "offset": 0,
-    "subcribtions": {},
 }
+subscriptions = {}          # channel -> [connections]
+client_subscriptions = {}   # connection -> {channels}
+subscriptions_lock = threading.Lock()
 
 replicas_lock = threading.Lock()
 replicas = []
@@ -513,33 +515,40 @@ def handle_config(parts):
 
 def handle_subscribe(conn, parts):
     channels = parts[4::2]
-    with replicas_lock:
+
+    with subscriptions_lock:
+        subscribed = client_subscriptions.setdefault(conn, set())
+
+        response = []
         for channel in channels:
-            if channel not in server["subcribtions"]:
-                server["subcribtions"][channel] = []
-            server["subcribtions"][channel].append(conn)
-    response = []
-    for channel in channels:
-        response.append(array(3))
-        response.append(bulk("subscribe"))
-        response.append(bulk(channel))
-        response.append(integer(len(server["subcribtions"])))
+            subscriptions.setdefault(channel, []).append(conn)
+            subscribed.add(channel)
+
+            response += [
+                array(3),
+                bulk("subscribe"),
+                bulk(channel),
+                integer(len(subscribed)),
+            ]
+
     return b"".join(response)
 
 def handle_unsubscribe(conn, parts):
     channels = parts[4::2]
-    with replicas_lock:
+    with subscriptions_lock:
+        subscribed = client_subscriptions.get(conn, set())
         for channel in channels:
-            if channel in server["subcribtions"]:
-                server["subcribtions"][channel].remove(conn)
-                if not server["subcribtions"][channel]:
-                    del server["subcribtions"][channel]
+            if channel in subscribed:
+                subscribed.remove(channel)
+                subscriptions[channel].remove(conn)
+                if not subscriptions[channel]:
+                    del subscriptions[channel]
     response = []
     for channel in channels:
         response.append(array(3))
         response.append(bulk("unsubscribe"))
         response.append(bulk(channel))
-        response.append(integer(len(server["subcribtions"].get(channel, []))))
+        response.append(integer(len(subscriptions.get(channel, []))))
     return b"".join(response)
 
 def get_aof_file_path(manifest_path):
