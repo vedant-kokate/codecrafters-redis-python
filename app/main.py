@@ -855,6 +855,8 @@ def handle_acl(parts):
     subcommand = parts[4].upper()
     if subcommand == "WHOAMI":
         return bulk("default")
+    elif subcommand == "GETUSER":
+        return  array(2) + bulk("flags") + array(0)
     elif subcommand == "LIST":
         return array(1) + bulk("user default on nopass ~* +@all")
     elif subcommand == "SETUSER":
