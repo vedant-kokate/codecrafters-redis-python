@@ -6,6 +6,7 @@ import base64
 from pathlib import Path
 import os
 import bisect
+import math
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -45,6 +46,7 @@ COMMAND_HANDLERS = {
     "ZREM": lambda conn, parts, transactions: (handle_zrem(parts), False),
     "GEOADD": lambda conn, parts, transactions: (handle_geoadd(parts), False),
     "GEOPOS": lambda conn, parts, transactions: (handle_geopos(parts), False),
+    "GEODIST": lambda conn, parts, transactions: (handle_geodist(parts), False),
 }
 
 global_store = {}
@@ -748,6 +750,47 @@ def handle_geopos(parts):
             response.append(b"*-1\r\n")
 
     return b"".join(response)
+
+def haversine_distance(lat1, long1, lat2, long2):
+    R = 6372797.560856  # Earth radius in meters
+
+    lat1_rad = math.radians(lat1)
+    long1_rad = math.radians(long1)
+    lat2_rad = math.radians(lat2)
+    long2_rad = math.radians(long2)
+
+    dlat = lat2_rad - lat1_rad
+    dlong = long2_rad - long1_rad
+
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlong / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    distance = R * c
+    return round(distance, 4)
+
+def handle_geodist(parts):
+    key = parts[4]
+    member1 = parts[6]
+    member2 = parts[8]
+    
+    if key not in global_store:
+        return b"$-1\r\n"
+
+    zset = global_store[key]
+    member_to_score = {member: score for score, member in zset}
+
+    if member1 not in member_to_score or member2 not in member_to_score:
+        return b"$-1\r\n"
+
+    score1 = member_to_score[member1]
+    score2 = member_to_score[member2]
+
+    lat1, long1 = geoadd_decode(score1)
+    lat2, long2 = geoadd_decode(score2)
+
+    distance = haversine_distance(lat1, long1, lat2, long2)
+
+    return bulk(str(distance))
 
 def handle_zrank(parts):
     key = parts[4]
