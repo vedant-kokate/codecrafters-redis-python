@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import socket  # noqa: F401
 import threading
 import time
@@ -52,6 +53,15 @@ COMMAND_HANDLERS = {
 }
 
 global_store = {}
+
+users = {
+    "default": {
+        "flags": {"on", "nopass"},
+        "passwords": set(),
+    }
+}
+
+users_lock = threading.RLock()
 
 conditions = {}
 conditions_lock = threading.Lock()
@@ -856,10 +866,30 @@ def handle_acl(parts):
     if subcommand == "WHOAMI":
         return bulk("default")
     elif subcommand == "GETUSER":
-        return  array(4) + bulk("flags") + array(1) + bulk("nopass") + bulk("passwords") + array(0)
+        user_name = parts[6]
+        user_data = users.get(user_name)
+        response = array(4) +bulk("flags")
+        if "nopass" in user_data["flags"]:
+            response += array(1)+ bulk("nopass")
+        response += bulk("passwords")
+        if user_data["passwords"]:
+            response += array(1) + user_data["passwords"]
+        else:
+            response += array(0)
+        return  response
     elif subcommand == "LIST":
         return array(1) + bulk("user default on nopass ~* +@all")
     elif subcommand == "SETUSER":
+        user_name = parts[6]
+        user_data = users.get(user_name)
+
+        password = parts[8][1:]  # remove the >
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+        user_data["passwords"].add(password_hash)
+        user_data["flags"].discard("nopass")
+
+
         return b"+OK\r\n"
     else:
         return b"-ERR unknown ACL subcommand\r\n"
