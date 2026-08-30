@@ -8,7 +8,7 @@ import os
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
-    "PING": lambda conn, parts, transaction: (b"+PONG\r\n", False),
+    "PING": lambda conn, parts, transaction: (handle_ping(), False),
     "ECHO": lambda conn, parts, transaction: (bulk(parts[4]), False),
     "SET": lambda conn, parts, transaction: (handle_set_with_expiry(parts), False),
     "GET": lambda conn, parts, transaction: (handle_get_with_expiry(parts), False),
@@ -82,6 +82,10 @@ def increment_key_version(key):
     with key_versions_lock:
         key_versions[key] = key_versions.get(key, 0) + 1
 
+def handle_ping():
+    if server["subcription_mode"] == "off":
+        return "+PONG\r\n"
+    return array(2) + bulk("pong") + bulk("")
 def handle_get_with_expiry(parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
