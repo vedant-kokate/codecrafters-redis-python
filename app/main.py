@@ -890,7 +890,7 @@ def handle_acl(parts):
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         user_data["password"] = password_hash
         user_data["flags"].discard("nopass")
-
+        print(f"Updated user: {user_data}")
         return b"+OK\r\n"
     else:
         return b"-ERR unknown ACL subcommand\r\n"
