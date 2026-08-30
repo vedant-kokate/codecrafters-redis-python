@@ -50,6 +50,7 @@ COMMAND_HANDLERS = {
     "GEODIST": lambda conn, parts, transactions: (handle_geodist(parts), False),
     "GEOSEARCH": lambda conn, parts, transactions: (handle_geosearch(parts), False),
     "ACL": lambda conn, parts, transactions: (handle_acl(parts), False),
+    "AUTH": lambda conn, parts, transactions: (handle_auth(parts), False),
 }
 
 global_store = {}
@@ -880,8 +881,6 @@ def handle_acl(parts):
         else:
             response += array(0)
         return  response
-    elif subcommand == "LIST":
-        return array(1) + bulk("user default on nopass ~* +@all")
     elif subcommand == "SETUSER":
         user_name = parts[6]
         user_data = users.get(user_name)
@@ -895,6 +894,15 @@ def handle_acl(parts):
     else:
         return b"-ERR unknown ACL subcommand\r\n"
 
+def handle_auth(parts):
+    username, password = parts[4], parts[6]
+    user_password = users.dig(username, "passwords")
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if password_hash == user_password:
+        return b"+OK\r\n"
+
+    return b"-WRONGPASS invalid username-password pair\r\n"
+    
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
     aof_file = next(
