@@ -738,7 +738,7 @@ def handle_geopos(parts):
             response.append(bulk(str(long)))
             response.append(bulk(str(lat)))
         else:
-            response.append(array(0))  # Member not found, return nil array
+            response.append(b"*-1\r\n")
 
     return b"".join(response)
 
