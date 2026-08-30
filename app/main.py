@@ -541,6 +541,13 @@ def handle_subscribe(conn, parts):
 
 def handle_publish(conn, parts):
     channel = parts[4]
+    message = parts[6]
+    for subscriber in subscriptions.get(channel, []):
+        try:
+            subscriber.sendall(array(3) + bulk("message") + bulk(channel) + bulk(message))
+        except Exception as e:
+            print(f"Error sending message to subscriber: {e}")
+            
     return integer(len(subscriptions.get(channel, [])))
 
 def handle_unsubscribe(conn, parts):
