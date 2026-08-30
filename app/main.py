@@ -40,6 +40,7 @@ COMMAND_HANDLERS = {
     "ZADD": lambda conn, parts, transaction: (handle_zadd(parts), False), 
     "ZRANK": lambda conn, parts, transactions: (handle_zrank(parts), False),
     "ZRANGE": lambda conn, parts, transactions: (handle_zrange(parts), False),
+    "ZCARD": lambda conn, parts, transactions: (handle_zcard(parts), False),
 }
 global_store = {}
 
@@ -612,6 +613,15 @@ def handle_zrank(parts):
 
     return b"$-1\r\n"
 
+def handle_zcard(parts):
+    key = parts[4]
+
+    if key not in global_store or not isinstance(global_store[key], list):
+        return integer(0)
+
+    zset = global_store[key]
+    return integer(len(zset))
+
 def handle_zrange(parts):
     key = parts[4]
     start = int(parts[6])
@@ -621,10 +631,6 @@ def handle_zrange(parts):
         return array(0)
 
     zset = global_store[key]
-
-    if end == -1:
-        end = len(zset) - 1
-
     selected_members = zset[start:end + 1]
 
     response = [array(len(selected_members))]
