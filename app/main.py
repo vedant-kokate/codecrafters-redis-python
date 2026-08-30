@@ -4,6 +4,7 @@ import threading
 import time
 import base64
 from pathlib import Path
+import os
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -504,8 +505,25 @@ def handle_config(parts):
     print(f"Received CONFIG command: {command} and server[param]: {server[param]}")
     return array(2) + bulk(param) + bulk(server[param]) 
 
+def aof(parts):
+    if server["appendonly"].lower() != "yes":
+        return
 
-    
+    path = Path(server["dir"]) / server["appenddirname"]
+    manifest = path / f"{server['appendfilename']}.manifest"
+
+    aof_file = next(
+        line.split()[1]
+        for line in manifest.read_text().splitlines()
+        if "type i" in line
+    )
+    s = parts[2::2]
+    with open(path, "a") as f:
+        f.write(array(len(s)) + b"".join(bulk(k) for k in s))
+        if server["appendfsync"].lower() == "always":
+            f.flush()
+            os.fsync(f.fileno())
+
 def parse_command(conn, data, transaction, is_master=False):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
@@ -526,7 +544,7 @@ def parse_command(conn, data, transaction, is_master=False):
 
     if is_master and command != "PSYNC":
         server["offset"] += len(data)
-
+    aof(parts)
     return response, override
 
 def split_commands(data):
