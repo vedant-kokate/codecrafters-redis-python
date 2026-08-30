@@ -571,7 +571,7 @@ def handle_unsubscribe(conn, parts):
     return b"".join(response)
 
 def handle_zadd(conn, parts):
-    data = parts[2::2]
+    data = parts[4::2]
     i = 0
     while i < len(data):
         key = data[i]
