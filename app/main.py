@@ -57,7 +57,7 @@ global_store = {}
 users = {
     "default": {
         "flags": {"on", "nopass"},
-        "passwords": set(),
+        "passwords": None,
     }
 }
 
@@ -885,10 +885,8 @@ def handle_acl(parts):
 
         password = parts[8][1:]  # remove the >
         password_hash = hashlib.sha256(password.encode()).hexdigest()
-
-        user_data["passwords"].add(password_hash)
+        user_data["password"] = password_hash
         user_data["flags"].discard("nopass")
-
 
         return b"+OK\r\n"
     else:
