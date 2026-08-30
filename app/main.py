@@ -505,6 +505,15 @@ def handle_config(parts):
     print(f"Received CONFIG command: {command} and server[param]: {server[param]}")
     return array(2) + bulk(param) + bulk(server[param]) 
 
+def get_aof_file_path(manifest_path):
+    manifest = manifest_path.read_text().splitlines()
+    aof_file = next(
+        line.split()[1]
+        for line in manifest
+        if "type i" in line
+    )
+    return manifest_path.parent / aof_file
+
 def aof(parts):
     if server["appendonly"].lower() != "yes":
         return
@@ -512,11 +521,7 @@ def aof(parts):
     path = Path(server["dir"]) / server["appenddirname"]
     manifest = path / f"{server['appendfilename']}.manifest"
 
-    aof_file = next(
-        line.split()[1]
-        for line in manifest.read_text().splitlines()
-        if "type i" in line
-    )
+    aof_file = get_aof_file_path(manifest)
 
     s = parts[2::2]
     print("File path:",path/aof_file)
@@ -708,6 +713,23 @@ def load_rdb(data):
 
         global_store[key] = (value, expiry)
 
+def load_aof_files(path):
+    manifest_path = path / f"{server['appendfilename']}.manifest"
+    if not manifest_path.exists():
+        print(f"No manifest file found at {manifest_path}, skipping AOF loading")
+        return
+    aof_file_path = get_aof_file_path(manifest_path)
+    
+    if not aof_file_path.exists():
+        print(f"No AOF file found at {aof_file_path}, skipping AOF loading")
+        return
+    
+    with open(aof_file_path, "rb") as f:
+        data = f.read()
+        commands = split_commands(data)
+        for command in commands:
+            parse_command(None, command, {"in_multi": False, "queue": [], "watched_keys": {}}, is_master=True)
+
 def set_server(args):
     server["dir"] = args.dir or "/app"
     server["dbfilename"] = args.dbfilename or "dump.rdb"
@@ -719,13 +741,16 @@ def set_server(args):
 
     if server["appendonly"] == "yes":
         path = Path(server["dir"]) / server["appenddirname"]
-        path.mkdir(parents=True, exist_ok=True) 
+        if path.exists() and path.is_dir():
+            load_aof_files(path)
+        else:
+            path.mkdir(parents=True, exist_ok=True) 
 
-        aof = path / f"{server['appendfilename']}.1.incr.aof"
-        manifest = path / f"{server['appendfilename']}.manifest"
+            aof = path / f"{server['appendfilename']}.1.incr.aof"
+            manifest = path / f"{server['appendfilename']}.manifest"
 
-        aof.touch()
-        manifest.write_text(f"file {aof.name} seq 1 type i\n")
+            aof.touch()
+            manifest.write_text(f"file {aof.name} seq 1 type i\n")
 
     if server["dir"] and server["dbfilename"]:
         path = Path(server["dir"]) / server["dbfilename"]
