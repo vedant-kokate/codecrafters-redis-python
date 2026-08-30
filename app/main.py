@@ -587,7 +587,7 @@ def parse_command(conn, data, transaction, is_master=False):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
     if server["subcription_mode"] == "on" and command not in ("SUBSCRIBE", "UNSUBSCRIBE", "PSUBSCRIBE", "PUNSUBSCRIBE", "PING", "QUIT"):
-        return b"-ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / PING / QUIT allowed in subscription mode\r\n", False
+        return bulk("ERR Can't execute 'echo': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context"), False
     
     if command == "REPLCONF":
         response = handle_replconf(conn, parts)
