@@ -896,7 +896,7 @@ def handle_acl(parts):
 
 def handle_auth(parts):
     username, password = parts[4], parts[6]
-    user_password = users.dig(username, "passwords")
+    user_password = users[username]["passwords"]
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     if password_hash == user_password:
         return b"+OK\r\n"
