@@ -84,7 +84,7 @@ def increment_key_version(key):
 def handle_ping(conn):
     is_subscription_mode = len(client_subscriptions.get(conn, set())) > 0
     if not is_subscription_mode:
-        return "+PONG\r\n"
+        return b"+PONG\r\n"
     return array(2) + bulk("pong") + bulk("")
 
 def handle_get_with_expiry(parts):
