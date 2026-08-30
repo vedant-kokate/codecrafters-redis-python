@@ -50,6 +50,7 @@ server = {
     "role": "master",
     "master_conn": None,
     "offset": 0,
+    "subcription_mode": "off",
 }
 subscriptions = {}          # channel -> [connections]
 client_subscriptions = {}   # connection -> {channels}
@@ -531,6 +532,7 @@ def handle_subscribe(conn, parts):
                 integer(len(subscribed)),
             ]
 
+    server["subcription_mode"] = "on"
     return b"".join(response)
 
 def handle_unsubscribe(conn, parts):
@@ -584,7 +586,9 @@ def parse_command(conn, data, transaction, is_master=False):
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
-
+    if server["subcription_mode"] == "on" and command not in ("SUBSCRIBE", "UNSUBSCRIBE", "PSUBSCRIBE", "PUNSUBSCRIBE", "PING", "QUIT"):
+        return b"-ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / PING / QUIT allowed in subscription mode\r\n", False
+    
     if command == "REPLCONF":
         response = handle_replconf(conn, parts)
         override = parts[4].upper() == "GETACK"
