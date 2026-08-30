@@ -48,6 +48,7 @@ COMMAND_HANDLERS = {
     "GEOPOS": lambda conn, parts, transactions: (handle_geopos(parts), False),
     "GEODIST": lambda conn, parts, transactions: (handle_geodist(parts), False),
     "GEOSEARCH": lambda conn, parts, transactions: (handle_geosearch(parts), False),
+    "ACL": lambda conn, parts, transactions: (handle_acl(parts), False),
 }
 
 global_store = {}
@@ -849,6 +850,17 @@ def handle_zrange(parts):
 
 
     return b"".join(response)
+
+def handle_acl(parts):
+    subcommand = parts[4].upper()
+    if subcommand == "WHOAMI":
+        return bulk("default")
+    elif subcommand == "LIST":
+        return array(1) + bulk("user default on nopass ~* +@all")
+    elif subcommand == "SETUSER":
+        return b"+OK\r\n"
+    else:
+        return b"-ERR unknown ACL subcommand\r\n"
 
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
