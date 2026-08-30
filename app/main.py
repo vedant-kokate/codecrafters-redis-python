@@ -517,8 +517,10 @@ def aof(parts):
         for line in manifest.read_text().splitlines()
         if "type i" in line
     )
+
     s = parts[2::2]
-    with open(path, "a") as f:
+    print("File path:",path/aof_file)
+    with open(path / aof_file, "ab") as f:
         f.write(array(len(s)) + b"".join(bulk(k) for k in s))
         if server["appendfsync"].lower() == "always":
             f.flush()
