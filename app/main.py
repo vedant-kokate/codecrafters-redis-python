@@ -629,7 +629,8 @@ def handle_zrange(parts):
 
     if key not in global_store or not isinstance(global_store[key], list):
         return array(0)
-
+    if end == -1:
+        end = len(global_store[key]) - 1
     zset = global_store[key]
     selected_members = zset[start:end + 1]
 
