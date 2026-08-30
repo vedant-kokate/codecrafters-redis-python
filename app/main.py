@@ -41,6 +41,7 @@ COMMAND_HANDLERS = {
     "ZRANK": lambda conn, parts, transactions: (handle_zrank(parts), False),
     "ZRANGE": lambda conn, parts, transactions: (handle_zrange(parts), False),
     "ZCARD": lambda conn, parts, transactions: (handle_zcard(parts), False),
+    "ZSCORE": lambda conn, parts, transactions: (handle_zscore(parts), False),
 }
 global_store = {}
 
@@ -588,15 +589,33 @@ def handle_zadd(parts):
         score = float(parts[i])
         member = parts[i + 2]
 
-        if any(m == member for s, m in zset):
-            continue
+        for j, (old_score, old_member) in enumerate(zset):
+            if old_member == member:
+                zset.pop(j)
+                break
+        else:
+            added += 1
 
-        bisect.insort(zset, (score, member))
-        added += 1
+    bisect.insort(zset, (score, member))
 
     increment_key_version(key)
 
     return integer(added)
+
+def handle_zscore(parts):
+    key = parts[4]
+    member = parts[6]
+
+    if key not in global_store or not isinstance(global_store[key], list):
+        return b"$-1\r\n"
+
+    zset = global_store[key]
+
+    for score, m in zset:
+        if m == member:
+            return bulk(str(score))
+
+    return b"$-1\r\n"
 
 def handle_zrank(parts):
     key = parts[4]
