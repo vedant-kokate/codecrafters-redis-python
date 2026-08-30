@@ -39,6 +39,7 @@ COMMAND_HANDLERS = {
     "PUBLISH": lambda conn, parts, transaction: (handle_publish(conn, parts), False),
     "ZADD": lambda conn, parts, transaction: (handle_zadd(parts), False), 
     "ZRANK": lambda conn, parts, transactions: (handle_zrank(parts), False),
+    "ZRANGE": lambda conn, parts, transactions: (handle_zrange(parts), False),
 }
 global_store = {}
 
@@ -610,6 +611,27 @@ def handle_zrank(parts):
             return integer(rank)
 
     return b"$-1\r\n"
+
+def handle_zrange(parts):
+    key = parts[4]
+    start = int(parts[6])
+    end = int(parts[8])
+
+    if key not in global_store or not isinstance(global_store[key], list):
+        return array(0)
+
+    zset = global_store[key]
+
+    if end == -1:
+        end = len(zset) - 1
+
+    selected_members = zset[start:end + 1]
+
+    response = [array(len(selected_members))]
+    for score, member in selected_members:
+        response.append(bulk(member))
+
+    return b"".join(response)
 
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
