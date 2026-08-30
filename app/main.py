@@ -50,7 +50,7 @@ COMMAND_HANDLERS = {
     "GEODIST": lambda conn, parts, transactions: (handle_geodist(parts), False),
     "GEOSEARCH": lambda conn, parts, transactions: (handle_geosearch(parts), False),
     "ACL": lambda conn, parts, transactions: (handle_acl(parts), False),
-    "AUTH": lambda conn, parts, transactions: (handle_auth(parts), False),
+    "AUTH": lambda conn, parts, transactions: (handle_auth(conn, parts), False),
 }
 
 global_store = {}
@@ -63,6 +63,8 @@ users = {
 }
 
 users_lock = threading.RLock()
+
+connection_auth = {}
 
 conditions = {}
 conditions_lock = threading.Lock()
@@ -894,11 +896,12 @@ def handle_acl(parts):
     else:
         return b"-ERR unknown ACL subcommand\r\n"
 
-def handle_auth(parts):
+def handle_auth(conn, parts):
     username, password = parts[4], parts[6]
     user_password = users[username]["passwords"]
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     if password_hash == user_password:
+        connection_auth[conn] = True
         return b"+OK\r\n"
 
     return b"-WRONGPASS invalid username-password pair\r\n"
@@ -929,10 +932,20 @@ def aof(parts):
             f.flush()
             os.fsync(f.fileno())
 
+def pre_auth(conn, parts):
+    user_name = "default"
+    user_data = users[user_name]
+    if "nopass" not in user_data["flags"] and connection_auth[conn] != True:
+        return False
+    return True
+
+
 def parse_command(conn, data, transaction, is_master=False):
     parts = data.decode().split("\r\n")
     command = parts[2].upper()
-
+    if command != "AUTH" and not pre_auth(conn, parts):
+        return b"NOAUTH Authentication required."
+        
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
