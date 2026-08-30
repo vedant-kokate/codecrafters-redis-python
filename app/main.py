@@ -868,6 +868,7 @@ def handle_acl(parts):
     elif subcommand == "GETUSER":
         user_name = parts[6]
         user_data = users.get(user_name)
+        print(f"User: {user_data}")
         response = array(4) +bulk("flags")
         if "nopass" in user_data["flags"]:
             response += array(1)+ bulk("nopass")
