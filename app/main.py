@@ -727,6 +727,9 @@ def handle_geopos(parts):
     key = parts[4]
     members = parts[6::2]
 
+    if key not in global_store:
+        return array(len(members)) + b"".join(b"*-1\r\n" for _ in members)
+    
     zset = global_store[key]
     member_to_score = {member: score for score, member in zset}
 
