@@ -935,7 +935,7 @@ def aof(parts):
 def pre_auth(conn, parts):
     user_name = "default"
     user_data = users[user_name]
-    if "nopass" not in user_data["flags"] and connection_auth[conn] != True:
+    if "nopass" not in user_data["flags"] and not connection_auth.get(conn, False):
         return False
     return True
 
