@@ -637,9 +637,11 @@ def handle_zrem(parts):
 
 def handle_geoadd(parts):
     key = parts[4]
-    long, lat, member = parts[6], parts[8], parts[10]
+    long, lat, member = float(parts[6]), float(parts[8]), parts[10]
+    if not(-180 <= long <= 180 and -85.05112878 <= lat <= 85.05112878):
+        return b"-ERR invalid longitude,latitude pair #{long},{lat}\r\n".format(long=long, lat=lat)
     global_store.setdefault(key, [])
-    global_store[key].append((float(long), float(lat), member))
+    global_store[key].append((long, lat, member))
     return integer(1)
 
 def handle_zrank(parts):
