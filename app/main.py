@@ -583,7 +583,8 @@ def handle_zadd(conn, parts):
     for i in range(6, len(parts) - 1, 4):
         score = float(parts[i])
         member = parts[i + 2]
-
+        if member in zset["members"]:
+            continue
         pos = bisect.bisect_left(zset["scores"], score)
 
         zset["scores"].insert(pos, score)
