@@ -935,7 +935,7 @@ def aof(parts):
 def pre_auth(conn, parts):
     user_name = "default"
     user_data = users[user_name]
-    if "nopass" not in user_data["flags"] and not connection_auth.get(conn, False):
+    if "nopass" not in user_data["flags"] and not connection_auth.get(conn, True):
         return False
     return True
 
@@ -1021,6 +1021,12 @@ def handle_data(conn, data, transaction, is_master):
         if response:
             conn.sendall(response)
 
+def startup_auth(conn):
+    user_name = "default"
+    user_data = users[user_name]
+    if "nopass" not in user_data["flags"]:
+        connection_auth[conn] = False
+
 def handle(conn):
     transaction = {
         "in_multi": False,
@@ -1028,6 +1034,7 @@ def handle(conn):
         "watched_keys": {}
     }
     is_master = conn == server["master_conn"]
+    startup_auth(conn)
     while True:
         data = conn.recv(1024)
         if not data:
