@@ -681,8 +681,10 @@ def handle_zrange(parts):
     selected_members = zset[start:end + 1]
 
     response = [array(len(selected_members))]
-    for score, member in selected_members:
+    for item in selected_members:
+        member = item[-1]
         response.append(bulk(member))
+
 
     return b"".join(response)
 
