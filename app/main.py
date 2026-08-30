@@ -571,24 +571,29 @@ def handle_unsubscribe(conn, parts):
     return b"".join(response)
 
 def handle_zadd(conn, parts):
-    data = parts[4::2]
-    i = 0
-    while i < len(data):
-        key = data[i]
-        score = data[i + 1]
-        member = data[i + 2]
+    key = parts[4]
+    if key not in global_store:
+        global_store[key] = {"scores": [], "members": []}
+    elif not isinstance(global_store[key], dict):
+        return b"-ERR wrong type\r\n"
 
-        if key not in global_store:
-            global_store[key] = { "scores": [], "members": []}
-        elif not isinstance(global_store[key], dict):
-            return b"-ERR wrong type\r\n"
-        zset = global_store[key]
+    zset = global_store[key]
+    added = 0
+
+    for i in range(6, len(parts) - 1, 4):
+        score = float(parts[i])
+        member = parts[i + 2]
+
         pos = bisect.bisect_left(zset["scores"], score)
+
         zset["scores"].insert(pos, score)
         zset["members"].insert(pos, member)
-        increment_key_version(key)
-        i += 3
-    return integer(1)
+
+        added += 1
+
+    increment_key_version(key)
+    return integer(added)
+
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
     aof_file = next(
