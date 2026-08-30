@@ -50,7 +50,6 @@ server = {
     "role": "master",
     "master_conn": None,
     "offset": 0,
-    "subcription_mode": "off",
 }
 subscriptions = {}          # channel -> [connections]
 client_subscriptions = {}   # connection -> {channels}
@@ -83,7 +82,8 @@ def increment_key_version(key):
         key_versions[key] = key_versions.get(key, 0) + 1
 
 def handle_ping():
-    if server["subcription_mode"] == "off":
+    is_subscription_mode = len(client_subscriptions) > 0
+    if not is_subscription_mode:
         return "+PONG\r\n"
     return array(2) + bulk("pong") + bulk("")
 def handle_get_with_expiry(parts):
@@ -535,8 +535,6 @@ def handle_subscribe(conn, parts):
                 bulk(channel),
                 integer(len(subscribed)),
             ]
-
-    server["subcription_mode"] = "on"
     return b"".join(response)
 
 def handle_unsubscribe(conn, parts):
@@ -590,7 +588,9 @@ def parse_command(conn, data, transaction, is_master=False):
     if transaction["in_multi"] and command not in ("EXEC", "DISCARD", "MULTI", "WATCH", "UNWATCH"):
         transaction["queue"].append(parts)
         return b"+QUEUED\r\n", False
-    if server["subcription_mode"] == "on" and command not in ("SUBSCRIBE", "UNSUBSCRIBE", "PSUBSCRIBE", "PUNSUBSCRIBE", "PING", "QUIT"):
+
+    is_subcription_mode = client_subscriptions.get(conn) is not None and len(client_subscriptions[conn]) > 0
+    if is_subcription_mode and command not in ("SUBSCRIBE", "UNSUBSCRIBE", "PSUBSCRIBE", "PUNSUBSCRIBE", "PING", "QUIT"):
         return f"-ERR Can't execute '{command.lower()}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context\r\n".encode(), False
     
     if command == "REPLCONF":
