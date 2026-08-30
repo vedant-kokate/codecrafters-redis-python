@@ -57,7 +57,7 @@ global_store = {}
 users = {
     "default": {
         "flags": {"on", "nopass"},
-        "passwords": None,
+        "password": None,
     }
 }
 
@@ -874,9 +874,9 @@ def handle_acl(parts):
             response += array(1)+ bulk("nopass")
         else:
             response += array(0)
-        response += bulk("passwords")
-        if user_data["passwords"]:
-            response += array(1) + user_data["passwords"]
+        response += bulk("password")
+        if user_data["password"]:
+            response += array(1) + user_data["password"]
         else:
             response += array(0)
         return  response
