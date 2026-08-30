@@ -588,7 +588,7 @@ def handle_zadd(conn, parts):
         zset["members"].insert(pos, member)
         increment_key_version(key)
         i += 3
-
+    return integer(1)
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
     aof_file = next(
