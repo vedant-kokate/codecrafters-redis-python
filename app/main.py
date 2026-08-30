@@ -794,7 +794,7 @@ def handle_geodist(parts):
     return bulk(str(distance))
 
 def handle_geosearch(parts):
-    key, comand, lat, long, _, radius, unit = parts[4], parts[6], float(parts[8]), float(parts[10]), parts[12], float(parts[14]), parts[16].lower()
+    key, comand, long, lat, _, radius, unit = parts[4], parts[6], float(parts[8]), float(parts[10]), parts[12], float(parts[14]), parts[16].lower()
 
     results = []
     for score, member in global_store[key]:
