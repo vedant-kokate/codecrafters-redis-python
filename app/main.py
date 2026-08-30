@@ -5,6 +5,7 @@ import time
 import base64
 from pathlib import Path
 import os
+import bisect
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -36,6 +37,7 @@ COMMAND_HANDLERS = {
     "SUBSCRIBE": lambda conn, parts, transaction: (handle_subscribe(conn, parts), False),
     "UNSUBSCRIBE": lambda conn, parts, transaction: (handle_unsubscribe(conn, parts), False),
     "PUBLISH": lambda conn, parts, transaction: (handle_publish(conn, parts), False),
+    "ZADD": lambda conn, parts, transaction: (handle_zadd(conn, parts), False),  # Placeholder for ZADD
 }
 global_store = {}
 
@@ -547,7 +549,7 @@ def handle_publish(conn, parts):
             subscriber.sendall(array(3) + bulk("message") + bulk(channel) + bulk(message))
         except Exception as e:
             print(f"Error sending message to subscriber: {e}")
-            
+
     return integer(len(subscriptions.get(channel, [])))
 
 def handle_unsubscribe(conn, parts):
@@ -567,6 +569,25 @@ def handle_unsubscribe(conn, parts):
         response.append(bulk(channel))
         response.append(integer(len(subscriptions.get(channel, []))))
     return b"".join(response)
+
+def handle_zadd(conn, parts):
+    data = parts[2::2]
+    i = 0
+    while i < len(data):
+        key = data[i]
+        score = data[i + 1]
+        member = data[i + 2]
+
+        if key not in global_store:
+            global_store[key] = { "scores": [], "members": []}
+        elif not isinstance(global_store[key], dict):
+            return b"-ERR wrong type\r\n"
+        zset = global_store[key]
+        pos = bisect.bisect_left(zset["scores"], score)
+        zset["scores"].insert(pos, score)
+        zset["members"].insert(pos, member)
+        increment_key_version(key)
+        i += 3
 
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
