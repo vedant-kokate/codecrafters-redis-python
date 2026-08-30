@@ -35,6 +35,7 @@ COMMAND_HANDLERS = {
     "KEYS":  lambda conn, parts, transaction:(handle_keys(parts), False),
     "SUBSCRIBE": lambda conn, parts, transaction: (handle_subscribe(conn, parts), False),
     "UNSUBSCRIBE": lambda conn, parts, transaction: (handle_unsubscribe(conn, parts), False),
+    "PUBLISH": lambda conn, parts, transaction: (handle_publish(conn, parts), False),
 }
 global_store = {}
 
@@ -537,6 +538,10 @@ def handle_subscribe(conn, parts):
                 integer(len(subscribed)),
             ]
     return b"".join(response)
+
+def handle_publish(conn, parts):
+    channel = parts[4]
+    return integer(len(subscriptions.get(channel, [])))
 
 def handle_unsubscribe(conn, parts):
     channels = parts[4::2]
