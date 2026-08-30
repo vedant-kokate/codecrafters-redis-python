@@ -43,6 +43,7 @@ COMMAND_HANDLERS = {
     "ZCARD": lambda conn, parts, transactions: (handle_zcard(parts), False),
     "ZSCORE": lambda conn, parts, transactions: (handle_zscore(parts), False),
     "ZREM": lambda conn, parts, transactions: (handle_zrem(parts), False),
+    "GEOADD": lambda conn, parts, transactions: (handle_geoadd(parts), False),
 }
 global_store = {}
 
@@ -633,6 +634,13 @@ def handle_zrem(parts):
             return integer(1)
 
     return integer(0)
+
+def handle_geoadd(parts):
+    key = parts[4]
+    long, lat, member = parts[6], parts[8], parts[10]
+    global_store.setdefault(key, [])
+    global_store[key].append((float(long), float(lat), member))
+    return integer(1)
 
 def handle_zrank(parts):
     key = parts[4]
