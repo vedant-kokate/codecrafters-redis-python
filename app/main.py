@@ -47,6 +47,7 @@ COMMAND_HANDLERS = {
     "GEOADD": lambda conn, parts, transactions: (handle_geoadd(parts), False),
     "GEOPOS": lambda conn, parts, transactions: (handle_geopos(parts), False),
     "GEODIST": lambda conn, parts, transactions: (handle_geodist(parts), False),
+    "GEOSEARCH": lambda conn, parts, transactions: (handle_geosearch(parts), False),
 }
 
 global_store = {}
@@ -791,6 +792,18 @@ def handle_geodist(parts):
     distance = haversine_distance(lat1, long1, lat2, long2)
 
     return bulk(str(distance))
+
+def handle_geosearch(parts):
+    key, comand, lat, long, _, radius, unit = parts[4], parts[6], float(parts[8]), float(parts[10]), parts[12], float(parts[14]), parts[16].lower()
+
+    results = []
+    for score, member in global_store[key]:
+        member_lat, member_long = geoadd_decode(score)
+        distance = haversine_distance(lat, long, member_lat, member_long)
+        if distance <= radius:
+            results.append(member)
+
+    return array(len(results)) + b"".join(bulk(member) for member in results)
 
 def handle_zrank(parts):
     key = parts[4]
