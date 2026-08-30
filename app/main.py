@@ -871,6 +871,8 @@ def handle_acl(parts):
         response = array(4) +bulk("flags")
         if "nopass" in user_data["flags"]:
             response += array(1)+ bulk("nopass")
+        else:
+            response += array(0)
         response += bulk("passwords")
         if user_data["passwords"]:
             response += array(1) + user_data["passwords"]
