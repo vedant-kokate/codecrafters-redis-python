@@ -33,6 +33,8 @@ COMMAND_HANDLERS = {
     "WAIT": lambda conn, parts, transaction: (handle_wait(parts), False),
     "CONFIG": lambda conn, parts, transaction:(handle_config(parts), False),
     "KEYS":  lambda conn, parts, transaction:(handle_keys(parts), False),
+    "SUBSCRIBE": lambda conn, parts, transaction: (handle_subscribe(conn, parts), False),
+    "UNSUBSCRIBE": lambda conn, parts, transaction: (handle_unsubscribe(conn, parts), False),
 }
 global_store = {}
 
@@ -48,6 +50,7 @@ server = {
     "role": "master",
     "master_conn": None,
     "offset": 0,
+    "subcribtions": {},
 }
 
 replicas_lock = threading.Lock()
@@ -187,6 +190,7 @@ def handle_blpop(parts):
             + bulk(key)
             + bulk(item)
         )
+
 def handle_type(parts):
     key = parts[4]
 
@@ -233,6 +237,7 @@ def generate_xadd_id(key, id):
                 return f"{pre}-0"
             return f"{pre}-{last_id_seq + 1}"
         return f"{pre}-0" if pre != '0' else "0-1"
+
 def handle_xadd(parts):
     key = parts[4]
     id = parts[6]
@@ -287,6 +292,7 @@ def handle_xrange(parts):
             response.append(bulk(item))
 
     return b"".join(response)
+
 def handle_xread(parts):
     streams_index = parts.index("streams")
     args = parts[streams_index + 2::2]  # Skip "$len" elements
@@ -350,6 +356,7 @@ def handle_xread(parts):
             for item in flat:
                 response.append(bulk(item))
     return b"".join(response)
+
 def handle_incr(parts):
     key = parts[4]
     value, expiry_time = global_store.get(key, (None, None))
@@ -465,7 +472,6 @@ def check_replica_sync(target_offset, num_replicas, timeout_seconds):
                 return synced
             replica_ack_cond.wait(timeout=remaining)
 
-
 def handle_wait(parts):
     num_replicas = int(parts[4])
     timeout_ms = int(parts[6])
@@ -504,6 +510,37 @@ def handle_config(parts):
     param = command[2]
     print(f"Received CONFIG command: {command} and server[param]: {server[param]}")
     return array(2) + bulk(param) + bulk(server[param]) 
+
+def handle_subscribe(conn, parts):
+    channels = parts[4::2]
+    with replicas_lock:
+        for channel in channels:
+            if channel not in server["subcribtions"]:
+                server["subcribtions"][channel] = []
+            server["subcribtions"][channel].append(conn)
+    response = []
+    for channel in channels:
+        response.append(array(3))
+        response.append(bulk("subscribe"))
+        response.append(bulk(channel))
+        response.append(integer(len(server["subcribtions"][channel])))
+    return b"".join(response)
+
+def handle_unsubscribe(conn, parts):
+    channels = parts[4::2]
+    with replicas_lock:
+        for channel in channels:
+            if channel in server["subcribtions"]:
+                server["subcribtions"][channel].remove(conn)
+                if not server["subcribtions"][channel]:
+                    del server["subcribtions"][channel]
+    response = []
+    for channel in channels:
+        response.append(array(3))
+        response.append(bulk("unsubscribe"))
+        response.append(bulk(channel))
+        response.append(integer(len(server["subcribtions"].get(channel, []))))
+    return b"".join(response)
 
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
@@ -591,7 +628,6 @@ def split_commands(data):
 
     return commands
 
-
 def handle_data(conn, data, transaction, is_master):
     print(f"RECEIVED FROM {'MASTER' if is_master else 'CLIENT'}: {data!r}")
 
@@ -606,7 +642,6 @@ def handle_data(conn, data, transaction, is_master):
         response, _ = parse_command(conn, data, transaction, is_master=False)
         if response:
             conn.sendall(response)
-
 
 def handle(conn):
     transaction = {
@@ -693,7 +728,6 @@ def read_string(data, i):
     n = data[i]
     return data[i + 1:i + 1 + n].decode(), i + 1 + n
 
-
 def load_rdb(data):
     i = data.index(b"\xfe") + 5
 
@@ -719,7 +753,7 @@ def load_aof_files(path):
         print(f"No manifest file found at {manifest_path}, skipping AOF loading")
         return
     aof_file_path = get_aof_file_path(manifest_path)
-    
+
     if not aof_file_path.exists():
         print(f"No AOF file found at {aof_file_path}, skipping AOF loading")
         return
@@ -778,6 +812,7 @@ def handle_startup_params():
     
 
     return parser.parse_args()
+
 def main():
     args = handle_startup_params()
 
