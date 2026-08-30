@@ -45,6 +45,7 @@ COMMAND_HANDLERS = {
     "ZREM": lambda conn, parts, transactions: (handle_zrem(parts), False),
     "GEOADD": lambda conn, parts, transactions: (handle_geoadd(parts), False),
 }
+
 global_store = {}
 
 conditions = {}
@@ -66,6 +67,44 @@ subscriptions_lock = threading.Lock()
 
 replicas_lock = threading.Lock()
 replicas = []
+
+MIN_LATITUDE = -85.05112878
+MAX_LATITUDE = 85.05112878
+MIN_LONGITUDE = -180
+MAX_LONGITUDE = 180
+
+LATITUDE_RANGE = MAX_LATITUDE - MIN_LATITUDE
+LONGITUDE_RANGE = MAX_LONGITUDE - MIN_LONGITUDE
+
+
+def geoadd_encode(latitude: float, longitude: float) -> int:
+    # Normalize to the range 0-2^26
+    normalized_latitude = 2**26 * (latitude - MIN_LATITUDE) / LATITUDE_RANGE
+    normalized_longitude = 2**26 * (longitude - MIN_LONGITUDE) / LONGITUDE_RANGE
+
+    # Truncate to integers
+    normalized_latitude = int(normalized_latitude)
+    normalized_longitude = int(normalized_longitude)
+
+    return interleave(normalized_latitude, normalized_longitude)
+
+def interleave(x: int, y: int) -> int:
+    x = spread_int32_to_int64(x)
+    y = spread_int32_to_int64(y)
+
+    y_shifted = y << 1
+    return x | y_shifted
+
+def spread_int32_to_int64(v: int) -> int:
+    v = v & 0xFFFFFFFF
+
+    v = (v | (v << 16)) & 0x0000FFFF0000FFFF
+    v = (v | (v << 8)) & 0x00FF00FF00FF00FF
+    v = (v | (v << 4)) & 0x0F0F0F0F0F0F0F0F
+    v = (v | (v << 2)) & 0x3333333333333333
+    v = (v | (v << 1)) & 0x5555555555555555
+
+    return v
 
 def bulk(s):
     return f"${len(s)}\r\n{s}\r\n".encode()
@@ -638,10 +677,11 @@ def handle_zrem(parts):
 def handle_geoadd(parts):
     key = parts[4]
     long, lat, member = float(parts[6]), float(parts[8]), parts[10]
-    if not(-180 <= long <= 180 and -85.05112878 <= lat <= 85.05112878):
+    if not(MIN_LONGITUDE <= long <= MAX_LONGITUDE and MIN_LATITUDE <= lat <= MAX_LATITUDE):
         return f"-ERR invalid longitude,latitude pair #{long},{lat}\r\n".encode()
     global_store.setdefault(key, [])
-    global_store[key].append((long, lat, member))
+    score = geoadd_encode(lat, long)
+    global_store[key].append((score, member))
     return integer(1)
 
 def handle_zrank(parts):
