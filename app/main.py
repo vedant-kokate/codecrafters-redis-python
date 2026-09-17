@@ -959,7 +959,10 @@ def handle_strlen(parts):
 
 def handle_bitcount(parts):
     key = parts[4]
+    left = int(parts[6]) if len(parts) > 6 else 0
+    right = int(parts[8]) if len(parts) > 8 else -1
     val, _ = global_store.get(key, ("", None))
+    val = val.encode("latin-1")[left:right + 1] if right != -1 else val.encode("latin-1")[left:]
     return integer(sum(bin(byte).count("1") for byte in val.encode("latin-1")))
  
 def get_aof_file_path(manifest_path):
