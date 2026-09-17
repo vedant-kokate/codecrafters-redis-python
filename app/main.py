@@ -932,9 +932,10 @@ def handle_getbit(parts):
     bit_index = offset % 8
     if isinstance(val, tuple):
         val = val[0]  # Extract the integer value from the tuple
-        val = val.encode("utf-8")[byte_index]
         if byte_index >= len(val):
             return integer(0)
+        val = val.encode("utf-8")[byte_index]
+        
 
     bit_value = (1 << bit_index) & val
     return integer(bit_value)
