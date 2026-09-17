@@ -55,6 +55,7 @@ COMMAND_HANDLERS = {
     "SETBIT": lambda conn, parts, transactions: (handle_setbit(parts), False),
     "GETBIT": lambda conn, parts, transactions: (handle_getbit(parts), False),
     "STRLEN": lambda conn, parts, transactions: (handle_strlen(parts), False),
+    "BITCOUNT": lambda conn, parts, transactions: (handle_bitcount(parts), False),
 }
 
 global_store = {}
@@ -956,6 +957,10 @@ def handle_strlen(parts):
     val, _ = global_store.get(key, ("", None))
     return integer(len(val))
 
+def handle_bitcount(parts):
+    key = parts[4]
+    val, _ = global_store.get(key, ("", None))
+    return integer(sum(bin(byte).count("1") for byte in val.encode("latin-1")))
  
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
