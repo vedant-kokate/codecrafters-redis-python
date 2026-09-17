@@ -928,6 +928,10 @@ def handle_getbit(parts):
     val = global_store.get(key, 0)
     byte_index = offset // 8
     bit_index = offset % 8
+
+    if byte_index >= len(val):
+        return integer(0)
+    
     if isinstance(val, str):
         val = val.encode("utf-8")[byte_index]
         print(f"val: {val}, byte_index: {byte_index}, bit_index: {bit_index}")
