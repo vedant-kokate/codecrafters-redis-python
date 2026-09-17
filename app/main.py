@@ -54,6 +54,7 @@ COMMAND_HANDLERS = {
     "AUTH": lambda conn, parts, transactions: (handle_auth(conn, parts), False),
     "SETBIT": lambda conn, parts, transactions: (handle_setbit(parts), False),
     "GETBIT": lambda conn, parts, transactions: (handle_getbit(parts), False),
+    "STRLEN": lambda conn, parts, transactions: (handle_strlen(parts), False),
 }
 
 global_store = {}
@@ -949,6 +950,12 @@ def handle_getbit(parts):
     bit_value = (byte >> (7 - bit_index)) & 1
 
     return integer(bit_value)
+
+def handle_strlen(parts):
+    key = parts[4]
+    val, _ = global_store.get(key, ("", None))
+    return integer(len(val))
+
  
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
