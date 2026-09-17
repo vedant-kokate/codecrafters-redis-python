@@ -926,11 +926,12 @@ def handle_getbit(parts):
     key = parts[4]
     offset = int(parts[6])
     val = global_store.get(key, 0)
+    byte_index = offset // 8
+    bit_index = offset % 8
     if isinstance(val, str):
-        # convert string to ascii integer representation
-        val = sum(ord(c) << (8 * i) for i, c in enumerate(val))
-    print(f"handle_getbit: key={key}, offset={offset}, val={val}")
-    bit_value = (val >> offset) & 1
+        val = val.encode("utf-8")[byte_index]
+        
+    bit_value = (val >> (7 - bit_index)) & 1
     return integer(bit_value)
  
 def get_aof_file_path(manifest_path):
