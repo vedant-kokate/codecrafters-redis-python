@@ -913,32 +913,45 @@ def handle_setbit(parts):
     bit_value = int(parts[8])
 
     if key not in global_store: global_store[key] = 0
-    val = global_store[key]
-    current_bit = (val >> offset) & 1
+    val = global_store.get(key, "")
+    if isinstance(val, tuple):
+        val = val[0]
+
+    val = bytearray(val.encode("utf-8"))
+    byte_index = offset // 8
+    bit_index = offset % 8
+
+    while len(val) <= byte_index:
+        val.append(0)
+
+    current_bit = (val[byte_index] >> (7 - bit_index)) & 1
+
     if bit_value == 1:
-        val |= (1 << offset)
+        val[byte_index] |= (1 << (7 - bit_index))
     else:
-        val &= ~(1 << offset)
-    global_store[key] = val
+        val[byte_index] &= ~(1 << (7 - bit_index))
+
+    global_store[key] = val.decode("latin-1")
     increment_key_version(key)
     return integer(current_bit)
 
 def handle_getbit(parts):
     key = parts[4]
     offset = int(parts[6])
-    val = global_store.get(key, 0)
+
+    val = global_store.get(key, "")
+
+    if isinstance(val, tuple): val = val[0]
 
     byte_index = offset // 8
     bit_index = offset % 8
-    if isinstance(val, tuple):
-        val = val[0]  # Extract the integer value from the tuple
-        if byte_index >= len(val):
-            return integer(0)
-        val = val.encode("utf-8")[byte_index]
-        print(f"{bit_index}: {bin(val)}")
-        bit_value = (val >> (7 - bit_index)) & 1
-        return integer(bit_value)
-    return integer((val >> offset) & 1)
+
+    if byte_index >= len(val): return integer(0)
+
+    byte = val.encode("latin-1")[byte_index]
+    bit_value = (byte >> (7 - bit_index)) & 1
+
+    return integer(bit_value)
  
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
