@@ -917,7 +917,7 @@ def handle_setbit(parts):
 
     val, _ = global_store.get(key, ("", None))
 
-    val = bytearray(val.encode("utf-8"))
+    val = bytearray(val.encode("latin-1"))
     byte_index = offset // 8
     bit_index = offset % 8
 
