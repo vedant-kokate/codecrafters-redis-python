@@ -930,6 +930,7 @@ def handle_getbit(parts):
     bit_index = offset % 8
     if isinstance(val, str):
         val = val.encode("utf-8")[byte_index]
+        print(f"val: {val}, byte_index: {byte_index}, bit_index: {bit_index}")
         
     bit_value = (val >> (7 - bit_index)) & 1
     return integer(bit_value)
