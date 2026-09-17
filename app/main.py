@@ -936,7 +936,7 @@ def handle_getbit(parts):
             return integer(0)
         val = val.encode("utf-8")[byte_index]
         print(f"{bit_index}: {bin(val)}")
-    bit_value = (val >> (7 - bit_index)) & 1
+    bit_value = (val >> (bit_index - 1)) & 1
     return integer(bit_value)
  
 def get_aof_file_path(manifest_path):
