@@ -983,6 +983,8 @@ def handle_bitop(parts):
             for val in values:
                 if i < len(val):
                     result[i] &= val[i]
+                else:
+                    result[i] &= 0x00
         global_store[dest_key] = (result.decode("latin-1"), None)
     elif command == "OR":
         values = []
@@ -998,6 +1000,7 @@ def handle_bitop(parts):
                     result[i] |= val[i]
         global_store[dest_key] = (result.decode("latin-1"), None)
     return integer(len(result))
+
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
     aof_file = next(
