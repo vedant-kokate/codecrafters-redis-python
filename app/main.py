@@ -932,7 +932,7 @@ def handle_getbit(parts):
 
     byte_index = offset // 8
     bit_index = offset % 8
-    print(f"GETBIT: key={key}, offset={offset}, byte_index={byte_index}, bit_index={bit_index}, val={val}", stdout=sys.stderr)
+    print(f"GETBIT: key={key}, offset={offset}, byte_index={byte_index}, bit_index={bit_index}, val={val}")
     if byte_index >= len(val):
         return integer(0)
 
