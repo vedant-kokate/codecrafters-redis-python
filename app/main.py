@@ -56,6 +56,7 @@ COMMAND_HANDLERS = {
     "GETBIT": lambda conn, parts, transactions: (handle_getbit(parts), False),
     "STRLEN": lambda conn, parts, transactions: (handle_strlen(parts), False),
     "BITCOUNT": lambda conn, parts, transactions: (handle_bitcount(parts), False),
+    "BITPOS": lambda conn, parts, transactions: (handle_bitpos(parts), False),
 }
 
 global_store = {}
@@ -964,6 +965,19 @@ def handle_bitcount(parts):
     val = val[left:right + 1] if right != -1 else val[left:]
 
     return integer(sum(bin(byte).count("1") for byte in val))
+
+def handle_bitop(parts):
+    command = parts[4].upper()
+    dest_key = parts[6]
+    source_keys = parts[8::2]
+    if command == "AND":
+        result = bytearray(global_store.get(source_keys[0], ("", None))[0].encode("latin-1"))
+        for key in source_keys[1:]:
+            val, _ = global_store.get(key, ("", None))
+            val = val.encode("latin-1")
+            result = bytearray(a & b for a, b in zip(result, val))
+        global_store[dest_key] = (result.decode("latin-1"), None)
+        return integer(1)
  
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
