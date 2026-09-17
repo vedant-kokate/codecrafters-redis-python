@@ -911,8 +911,8 @@ def handle_setbit(parts):
     key = parts[4]
     offset = int(parts[6])
     bit_value = int(parts[8])
-    
-    val = global_store.get(key, "")
+
+    val, _ = global_store.get(key, ("", None))
     if isinstance(val, tuple):
         val = val[0]
 
@@ -930,7 +930,7 @@ def handle_setbit(parts):
     else:
         val[byte_index] &= ~(1 << (7 - bit_index))
 
-    global_store[key] = val.decode("latin-1")
+    global_store[key] = (val.decode("latin-1"), None)
     increment_key_version(key)
     return integer(current_bit)
 
@@ -938,9 +938,7 @@ def handle_getbit(parts):
     key = parts[4]
     offset = int(parts[6])
 
-    val = global_store.get(key, "")
-
-    if isinstance(val, tuple): val = val[0]
+    val, _ = global_store.get(key, ("", None))
 
     byte_index = offset // 8
     bit_index = offset % 8
