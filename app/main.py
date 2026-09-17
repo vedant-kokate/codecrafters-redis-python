@@ -915,8 +915,6 @@ def handle_setbit(parts):
     bit_value = int(parts[8])
 
     val, _ = global_store.get(key, ("", None))
-    if isinstance(val, tuple):
-        val = val[0]
 
     val = bytearray(val.encode("utf-8"))
     byte_index = offset // 8
