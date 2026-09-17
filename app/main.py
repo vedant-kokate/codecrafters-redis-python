@@ -976,6 +976,7 @@ def handle_bitop(parts):
         val2, _ = global_store.get(key2, ("", None))
         val1 = val1.encode("latin-1")
         val2 = val2.encode("latin-1")
+        print(f"val1: {val1}, val2: {val2}")
         result = bytearray(a & b for a, b in zip(val1, val2))
         global_store[dest_key] = (result.decode("latin-1"), None)
         return integer(len(result))
