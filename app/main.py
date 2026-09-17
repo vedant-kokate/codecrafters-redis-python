@@ -8,6 +8,7 @@ from pathlib import Path
 import os
 import bisect
 import math
+import sys
 
 EMPTY_RBD_FILE_64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 COMMAND_HANDLERS = {
@@ -937,7 +938,7 @@ def handle_getbit(parts):
 
     byte = val.encode("utf-8")[byte_index]
     bit_value = (byte >> (7 - bit_index)) & 1
-    print(f"GETBIT: key={key}, offset={offset}, byte_index={byte_index}, bit_index={bit_index}, byte={byte}, bit_value={bit_value}", flush=True)
+    print(f"GETBIT: key={key}, offset={offset}, byte_index={byte_index}, bit_index={bit_index}, byte={byte}, bit_value={bit_value}", stdout=sys.stderr)
     return integer(bit_value)
  
 def get_aof_file_path(manifest_path):
