@@ -998,6 +998,8 @@ def handle_bitop(parts):
             for val in values:
                 if i < len(val):
                     result[i] |= val[i]
+                else:
+                    result[i] |= 0x00
         global_store[dest_key] = (result.decode("latin-1"), None)
     return integer(len(result))
 
