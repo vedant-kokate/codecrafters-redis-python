@@ -911,8 +911,7 @@ def handle_setbit(parts):
     key = parts[4]
     offset = int(parts[6])
     bit_value = int(parts[8])
-
-    if key not in global_store: global_store[key] = 0
+    
     val = global_store.get(key, "")
     if isinstance(val, tuple):
         val = val[0]
