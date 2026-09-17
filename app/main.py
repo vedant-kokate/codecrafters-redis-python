@@ -970,18 +970,34 @@ def handle_bitop(parts):
     command = parts[4].upper()
     dest_key = parts[6]
     source_keys = parts[8::2]
+    result = bytearray()
     if command == "AND":
-        key1, key2 = source_keys[0], source_keys[1]
-        val1, _ = global_store.get(key1, ("", None))
-        val2, _ = global_store.get(key2, ("", None))
-        print(f"val1: {val1}, val2: {val2}")
-        val1 = val1.encode("latin-1")
-        val2 = val2.encode("latin-1")
-        
-        result = bytearray(a & b for a, b in zip(val1, val2))
+        values = []
+        for key in source_keys:
+            val, _ = global_store.get(key, ("", None))
+            values.append(val.encode("latin-1"))
+        max_len = max(len(val) for val in values)
+        result = bytearray(max_len)
+        for i in range(max_len):
+            result[i] = 0xFF
+            for val in values:
+                if i < len(val):
+                    result[i] &= val[i]
         global_store[dest_key] = (result.decode("latin-1"), None)
-        return integer(len(result))
- 
+    elif command == "OR":
+        values = []
+        for key in source_keys:
+            val, _ = global_store.get(key, ("", None))
+            values.append(val.encode("latin-1"))
+        max_len = max(len(val) for val in values)
+        result = bytearray(max_len)
+        for i in range(max_len):
+            result[i] = 0x00
+            for val in values:
+                if i < len(val):
+                    result[i] |= val[i]
+        global_store[dest_key] = (result.decode("latin-1"), None)
+    return integer(len(result))
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
     aof_file = next(
