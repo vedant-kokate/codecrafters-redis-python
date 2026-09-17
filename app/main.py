@@ -929,6 +929,7 @@ def handle_getbit(parts):
     if isinstance(val, str):
         # convert string to ascii integer representation
         val = sum(ord(c) << (8 * i) for i, c in enumerate(val))
+    print(f"handle_getbit: key={key}, offset={offset}, val={val}")
     bit_value = (val >> offset) & 1
     return integer(bit_value)
  
