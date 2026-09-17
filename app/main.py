@@ -56,7 +56,7 @@ COMMAND_HANDLERS = {
     "GETBIT": lambda conn, parts, transactions: (handle_getbit(parts), False),
     "STRLEN": lambda conn, parts, transactions: (handle_strlen(parts), False),
     "BITCOUNT": lambda conn, parts, transactions: (handle_bitcount(parts), False),
-    "BITPOS": lambda conn, parts, transactions: (handle_bitpos(parts), False),
+    "BITOP": lambda conn, parts, transactions: (handle_bitop(parts), False),
 }
 
 global_store = {}
