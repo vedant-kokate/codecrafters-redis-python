@@ -977,7 +977,7 @@ def handle_bitop(parts):
             val = val.encode("latin-1")
             result = bytearray(a & b for a, b in zip(result, val))
         global_store[dest_key] = (result.decode("latin-1"), None)
-        return integer(1)
+        return integer(len(result))
  
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
