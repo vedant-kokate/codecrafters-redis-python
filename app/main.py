@@ -927,9 +927,7 @@ def handle_getbit(parts):
     key = parts[4]
     offset = int(parts[6])
     val = global_store.get(key, "")
-    if not isinstance(val, str):
-        val = ""
-
+  
     byte_index = offset // 8
     bit_index = offset % 8
     print(f"GETBIT: key={key}, offset={offset}, byte_index={byte_index}, bit_index={bit_index}, val={val}")
