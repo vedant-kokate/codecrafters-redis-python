@@ -51,6 +51,7 @@ COMMAND_HANDLERS = {
     "GEOSEARCH": lambda conn, parts, transactions: (handle_geosearch(parts), False),
     "ACL": lambda conn, parts, transactions: (handle_acl(parts), False),
     "AUTH": lambda conn, parts, transactions: (handle_auth(conn, parts), False),
+    "SETBIT": lambda conn, parts, transactions: (handle_setbit(parts), False),
 }
 
 global_store = {}
@@ -135,7 +136,6 @@ def geoadd_decode(geo_code: int) -> (float, float):
     
     return convert_grid_numbers_to_coordinates(grid_latitude_number, grid_longitude_number)
 
-
 def compact_int64_to_int32(v: int) -> int:
     """
     Compact a 64-bit integer with interleaved bits back to a 32-bit integer.
@@ -148,7 +148,6 @@ def compact_int64_to_int32(v: int) -> int:
     v = (v | (v >> 8)) & 0x0000FFFF0000FFFF
     v = (v | (v >> 16)) & 0x00000000FFFFFFFF
     return v
-
 
 def convert_grid_numbers_to_coordinates(grid_latitude_number, grid_longitude_number) -> (float, float):
     # Calculate the grid boundaries
@@ -905,6 +904,23 @@ def handle_auth(conn, parts):
         return b"+OK\r\n"
 
     return b"-WRONGPASS invalid username-password pair\r\n"
+
+def handle_setbit(parts):
+    key = parts[4]
+    offset = int(parts[6])
+    bit_value = int(parts[8])
+
+    if key not in global_store: global_store[key] = 0
+    val = global_store[key]
+    current_bit = (val >> offset) & 1
+    if bit_value == 1:
+        val |= (1 << offset)
+    else:
+        val &= ~(1 << offset)
+    global_store[key] = val
+    increment_key_version(key)
+    return integer(current_bit)
+
     
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
@@ -938,7 +954,6 @@ def pre_auth(conn, parts):
     if "nopass" not in user_data["flags"] and not connection_auth.get(conn, True):
         return False
     return True
-
 
 def parse_command(conn, data, transaction, is_master=False):
     parts = data.decode().split("\r\n")
@@ -1209,7 +1224,5 @@ def main():
             connection, _ = server_socket.accept()
             threading.Thread(target=handle, args=(connection,)).start()
             
-
-
 if __name__ == "__main__":
     main()
