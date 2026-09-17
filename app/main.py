@@ -52,6 +52,7 @@ COMMAND_HANDLERS = {
     "ACL": lambda conn, parts, transactions: (handle_acl(parts), False),
     "AUTH": lambda conn, parts, transactions: (handle_auth(conn, parts), False),
     "SETBIT": lambda conn, parts, transactions: (handle_setbit(parts), False),
+    "GETBIT": lambda conn, parts, transactions: (handle_getbit(parts), False),
 }
 
 global_store = {}
@@ -921,7 +922,13 @@ def handle_setbit(parts):
     increment_key_version(key)
     return integer(current_bit)
 
-    
+def handle_getbit(parts):
+    key = parts[4]
+    offset = int(parts[6])
+    val = global_store.get(key, 0)
+    bit_value = (val >> offset) & 1
+    return integer(bit_value)
+ 
 def get_aof_file_path(manifest_path):
     manifest = manifest_path.read_text().splitlines()
     aof_file = next(
