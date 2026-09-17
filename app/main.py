@@ -926,6 +926,9 @@ def handle_getbit(parts):
     key = parts[4]
     offset = int(parts[6])
     val = global_store.get(key, 0)
+    if isinstance(val, str):
+        # convert string to ascii integer representation
+        val = sum(ord(c) << (8 * i) for i, c in enumerate(val))
     bit_value = (val >> offset) & 1
     return integer(bit_value)
  
