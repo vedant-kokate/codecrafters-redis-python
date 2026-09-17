@@ -971,11 +971,12 @@ def handle_bitop(parts):
     dest_key = parts[6]
     source_keys = parts[8::2]
     if command == "AND":
-        result = bytearray(global_store.get(source_keys[0], ("", None))[0].encode("latin-1"))
-        for key in source_keys[1:]:
-            val, _ = global_store.get(key, ("", None))
-            val = val.encode("latin-1")
-            result = bytearray(a & b for a, b in zip(result, val))
+        key1, key2 = source_keys[0], source_keys[1]
+        val1, _ = global_store.get(key1, ("", None))
+        val2, _ = global_store.get(key2, ("", None))
+        val1 = val1.encode("latin-1")
+        val2 = val2.encode("latin-1")
+        result = bytearray(a & b for a, b in zip(val1, val2))
         global_store[dest_key] = (result.decode("latin-1"), None)
         return integer(len(result))
  
