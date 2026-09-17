@@ -925,18 +925,22 @@ def handle_setbit(parts):
 def handle_getbit(parts):
     key = parts[4]
     offset = int(parts[6])
-    val = global_store.get(key, 0)
+
+    val = global_store.get(key, "")
+
+    if not isinstance(val, str):
+        val = ""
+
     byte_index = offset // 8
     bit_index = offset % 8
 
     if byte_index >= len(val):
         return integer(0)
-    
-    if isinstance(val, str):
-        val = val.encode("utf-8")[byte_index]
-        print(f"val: {val}, byte_index: {byte_index}, bit_index: {bit_index}")
-        
-    bit_value = (val >> (7 - bit_index)) & 1
+
+    byte = val.encode("utf-8")[byte_index]
+
+    bit_value = (byte >> (7 - bit_index)) & 1
+
     return integer(bit_value)
  
 def get_aof_file_path(manifest_path):
