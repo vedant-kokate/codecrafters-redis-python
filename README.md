@@ -1,60 +1,167 @@
 [![progress-banner](https://backend.codecrafters.io/progress/redis/5524b540-1740-470e-a270-03e30a7b6e93)](https://app.codecrafters.io/users/vedant-kokate?r=2qF)
 
-This is a starting point for Python solutions to the
-["Build Your Own Redis" Challenge](https://codecrafters.io/challenges/redis).
+# Redis Server in Python
 
-In this challenge, you'll build a toy Redis clone that's capable of handling
-basic commands like `PING`, `SET` and `GET`. Along the way we'll learn about
-event loops, the Redis protocol and more.
+A Redis-compatible server implemented from scratch in Python as part of the [CodeCrafters "Build Your Own Redis" challenge](https://codecrafters.io/challenges/redis).
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+The goal was to go beyond implementing individual commands and understand the systems behind Redis: the RESP protocol, TCP connections, concurrency, transactions, persistence, replication, blocking operations, and data structures.
 
-# Passing the first stage
+## What is implemented
 
-The entry point for your Redis implementation is in `app/main.py`. Study and
-uncomment the relevant code, then run the command below to execute the tests on
-our servers:
+### Core server
 
-```sh
-codecrafters submit
+* TCP server with concurrent client connections
+* RESP protocol parsing and response encoding
+* Command dispatch and request handling
+* Multiple clients handled concurrently using Python threads
+* Key expiration with `PX`
+
+### Strings
+
+* `PING`
+* `ECHO`
+* `SET`
+* `GET`
+* `INCR`
+* `TYPE`
+* `KEYS`
+
+### Lists
+
+* `LPUSH`
+* `RPUSH`
+* `LPOP`
+* `BLPOP`
+* `LLEN`
+* `LRANGE`
+
+### Streams
+
+* `XADD`
+* `XRANGE`
+* `XREAD`
+
+### Transactions
+
+* `MULTI`
+* `EXEC`
+* `DISCARD`
+* `WATCH`
+* `UNWATCH`
+
+The implementation tracks key versions to detect modifications between `WATCH` and `EXEC`.
+
+### Replication
+
+* Primary/replica server roles
+* `PSYNC`
+* Replication offsets
+* Replica acknowledgements
+* `WAIT`
+* Command propagation to replicas
+
+### Pub/Sub
+
+* `SUBSCRIBE`
+* `UNSUBSCRIBE`
+* `PUBLISH`
+
+### Sorted sets
+
+* `ZADD`
+* `ZRANK`
+* `ZRANGE`
+* `ZCARD`
+* `ZSCORE`
+* `ZREM`
+
+### Geospatial operations
+
+* `GEOADD`
+* `GEOPOS`
+* `GEODIST`
+* `GEOSEARCH`
+
+Geospatial coordinates are encoded using an integer grid and bit interleaving, similar to the approach used by Redis for geospatial indexing.
+
+### Authentication and ACL
+
+* `AUTH`
+* `ACL`
+* User/password management
+* Per-connection authentication state
+
+## Architecture
+
+The server is intentionally implemented with a small number of primitives rather than relying on Redis-specific libraries.
+
+At a high level:
+
+```text
+Client
+  │
+  │ TCP
+  ▼
+RESP parser
+  │
+  ▼
+Command dispatcher
+  │
+  ├── Strings
+  ├── Lists
+  ├── Streams
+  ├── Transactions
+  ├── Pub/Sub
+  ├── Sorted Sets
+  ├── Geospatial
+  ├── Replication
+  └── ACL / Authentication
+  │
+  ▼
+In-memory data store
 ```
 
-That's all!
+Concurrency is handled with Python threads, locks, conditions, and per-connection state. Conditions are also used for blocking operations such as `BLPOP`.
 
-# Stage 2 & beyond
+## Running locally
 
-Note: This section is for stages 2 and beyond.
+The server entry point is:
 
-1. Ensure you have `uv` installed locally
-1. Run `./your_program.sh` to run your Redis server, which is implemented in
-   `app/main.py`.
-1. Run `codecrafters submit` to submit your solution to CodeCrafters. Test
-   output will be streamed to your terminal.
-
-# Troubleshooting
-
-## module `socket` has no attribute `create_server`
-
-When running your server locally, you might see an error like this:
-
-```
-Traceback (most recent call last):
-  File "/.../python3.7/runpy.py", line 193, in _run_module_as_main
-    "__main__", mod_spec)
-  File "/.../python3.7/runpy.py", line 85, in _run_code
-    exec(code, run_globals)
-  File "/app/app/main.py", line 11, in <module>
-    main()
-  File "/app/app/main.py", line 6, in main
-    s = socket.create_server(("localhost", 6379), reuse_port=True)
-AttributeError: module 'socket' has no attribute 'create_server'
+```bash
+app/main.py
 ```
 
-This is because `socket.create_server` was introduced in Python 3.8, and you
-might be running an older version.
+Run it with:
 
-You can fix this by installing Python 3.8 locally and using that.
+```bash
+./your_program.sh
+```
 
-If you'd like to use a different version of Python, change the `buildpack` value
-in `codecrafters.yml`.
+The default Redis port is `6379`.
+
+You can then connect with the Redis CLI:
+
+```bash
+redis-cli -p 6379
+```
+
+For example:
+
+```text
+SET name Vedant
+GET name
+```
+
+## CodeCrafters
+
+This project was built against the CodeCrafters Redis challenge and completed all available stages.
+
+The original challenge is available at:
+
+https://codecrafters.io/challenges/redis
+
+## Why I built this
+
+I wanted to understand Redis as a system rather than only use it as a dependency.
+
+Building the server from scratch made concepts such as wire protocols, concurrent connections, transactions, replication, blocking operations, and data-structure implementations much more concrete.
